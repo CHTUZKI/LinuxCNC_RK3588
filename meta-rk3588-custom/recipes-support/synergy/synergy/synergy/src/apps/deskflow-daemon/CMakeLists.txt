@@ -1,0 +1,52 @@
+# Deskflow -- mouse and keyboard sharing utility
+# Copyright (C) 2012-2024 Symless Ltd.
+# Copyright (C) 2009-2012 Nick Bolton
+#
+# This package is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# found in the file LICENSE that should have accompanied this file.
+#
+# This package is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Daemon is only needed on Windows for elevating processes to deal with UAC.
+if(WIN32)
+
+  set(target ${DAEMON_BINARY_NAME})
+
+  file(GLOB headers "*.h")
+  file(GLOB sources "*.cpp")
+
+  add_executable(${target} WIN32 ${sources} ${PROJECT_BINARY_DIR}/src/version.rc)
+
+  target_link_libraries(
+    ${target}
+    arch
+    base
+    io
+    ipc
+    mt
+    net
+    platform
+    app
+    ${libs}
+    Qt6::Core)
+  
+  find_package(Qt6 REQUIRED COMPONENTS Widgets)
+  get_target_property(WINDEPLOYQT_EXE Qt6::windeployqt IMPORTED_LOCATION)
+  add_custom_command(TARGET ${DAEMON_BINARY_NAME} POST_BUILD
+    COMMAND ${WINDEPLOYQT_EXE}
+      --no-compiler-runtime
+      --no-system-d3d-compiler
+      --no-opengl-sw
+      --no-quick-import
+      $<TARGET_FILE:${DAEMON_BINARY_NAME}>
+    COMMENT "Deploying Qt runtime for ${DAEMON_BINARY_NAME}.exe"
+  )
+
+endif()

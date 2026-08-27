@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+
+# Deskflow -- mouse and keyboard sharing utility
+# Copyright (C) 2024 Symless Ltd.
+#
+# This package is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# found in the file LICENSE that should have accompanied this file.
+#
+# This package is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import lib.env as env
+
+env.ensure_in_venv(__file__)
+
+import argparse
+import platform
+from lib.linux import PackageType
+from dotenv import load_dotenv  # type: ignore
+from lib import env
+
+ENV_FILE = ".env"
+DEFAULT_PRODUCT_NAME = "Synergy"
+DEFAULT_FILENAME_BASE = "synergy"
+DEFAULT_PROJECT_BUILD_DIR = "build"
+DEFAULT_DIST_DIR = "dist"
+DEFAULT_TEST_CMD = "synergy-server --version"
+DEFAULT_PACKAGE_NAME = "synergy"
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--leave-test-installed",
+        action="store_true",
+        help="Leave test package installed",
+    )
+    args = parser.parse_args()
+
+    load_dotenv(dotenv_path=ENV_FILE)
+
+    package(
+        env.get_env("SYNERGY_PACKAGE_PREFIX", default=DEFAULT_FILENAME_BASE),
+        env.get_env("SYNERGY_VERSION", required=True),
+        DEFAULT_PROJECT_BUILD_DIR,
+        DEFAULT_DIST_DIR,
+        DEFAULT_TEST_CMD,
+        DEFAULT_PRODUCT_NAME,
+        DEFAULT_PACKAGE_NAME,
+        leave_test_installed=args.leave_test_installed,
+    )
+
+
+def package(
+    filename_prefix,
+    version,
+    project_build_dir,
+    dist_dir,
+    test_cmd,
+    product_name,
+    package_name,
+    source_dir=None,
+    leave_test_installed=False,
+):
+    filename_base = get_filename_base(version, filename_prefix)
+    print(f"Package filename base: {filename_base}")
+
+    if env.is_windows():
+        windows_package(filename_base, project_build_dir, dist_dir)
+    elif env.is_mac():
+        mac_package(
+            filename_base, source_dir, project_build_dir, dist_dir, product_name
+        )
+    elif env.is_linux():
+        linux_package(
+            filename_base,
+            dist_dir,
+            test_cmd,
+            package_name,
+            leave_test_installed,
+        )
+    else:
+        raise RuntimeError(f"Unsupported platform: {env.get_os()}")
+
+
+def get_linux_filename_base(version, prefix, machine):
+    distro_name, _distro_like, distro_version = env.get_linux_distro()
+    if not distro_name:
+        raise RuntimeError("Failed to detect Linux distro")
+
+    # Make Arch Linux name clearer (ID is 'arch')
+    if distro_name == "arch":
+        distro_name = "arch-linux"
+
+    # Don't use the version numbers from rolling releases, as they make releases trickier.
+    rolling_releases = ["arch-linux", "opensuse-tumbleweed"]
+    if distro_version and (distro_name not in rolling_releases):
+        version_for_filename = distro_version.replace(".", "-")
+        os_part = f"{distro_name}-{version_for_filename}"
+    else:
+        os_part = distro_name
+
+    # Always use 'x86_64' as it's clearer and is widely recognized across all Linux distros.
+    # The term 'amd64' is a Deb-ism, and less technical users often confuse it with 'arm64'.
+    if machine == "amd64":
+        machine = "x86_64"
+
+    # Always use 'aarch64'. The term 'arm64' is mainly used in Debian-like distros,
+    # but most other Linux distros use 'aarch64'.
+    if machine == "arm64":
+        machine = "aarch64"
+
+    return os_part, machine
+
+
+def get_filename_base(version, prefix, use_linux_distro=True):
+    os = env.get_os()
+    machine = platform.machine().lower()
+    os_part = os
+
+    if os == "linux" and use_linux_distro:
+        os_part, machine = get_linux_filename_base(version, prefix, machine)
+    else:
+        # Some Windows users get confused by 'amd64' and think it's 'arm64',
+        # so we'll use Intel's 'x64' branding (even though it's wrong).
+        # Also replace 'x86_64' with 'x64' for consistency.
+        if machine == "amd64" or machine == "x86_64":
+            machine = "x64"
+
+    # Underscore is used to delimit different parts of the filename (e.g. version, OS, etc).
+    # Dashes are used to delimit spaces, e.g. "debian-trixie" for "Debian Trixie".
+    return f"{prefix}_{version}_{os_part}_{machine}"
+
+
+def windows_package(filename_base, project_build_dir, dist_dir):
+    import lib.windows as windows
+
+    windows.package(filename_base, project_build_dir, dist_dir)
+
+
+def mac_package(filename_base, source_dir, project_build_dir, dist_dir, product_name):
+    import lib.mac as mac
+
+    mac.package(filename_base, source_dir, project_build_dir, dist_dir, product_name)
+
+
+def linux_package(
+    filename_base,
+    dist_dir,
+    test_cmd,
+    package_name,
+    leave_test_installed,
+):
+    import lib.linux as linux
+
+    linux.package(
+        filename_base,
+        dist_dir,
+        test_cmd,
+        package_name,
+        PackageType.DISTRO,
+        leave_test_installed,
+    )
+
+
+if __name__ == "__main__":
+    main()

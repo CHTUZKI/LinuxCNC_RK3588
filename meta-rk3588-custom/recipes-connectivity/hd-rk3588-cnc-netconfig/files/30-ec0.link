@@ -1,0 +1,8 @@
+# GMAC1 (board RJ45) — dedicated EtherCAT raw socket interface via SOEM.
+[Match]
+Path=platform-fe1b0000.ethernet
+
+[Link]
+Name=ec0
+
+AlternativeNames=ethercat end0 eth0

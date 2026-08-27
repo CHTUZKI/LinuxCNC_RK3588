@@ -1,0 +1,76 @@
+name: "Build and sign Windows release"
+description: >
+  Signs the built inner binaries with SSL.com eSigner, builds the WiX MSI from
+  the signed binaries, then signs the MSI.
+
+inputs:
+  should-sign:
+    description: "Whether to run SSL.com signing on the inner binaries and the MSI"
+    required: false
+    default: "false"
+  ssl-username:
+    description: "SSL.com eSigner username (secrets.WINDOWS_SSL_USERNAME)"
+    required: true
+  ssl-password:
+    description: "SSL.com eSigner password (secrets.WINDOWS_SSL_PASSWORD)"
+    required: true
+  ssl-credential-id:
+    description: "SSL.com credential ID (secrets.WINDOWS_SSL_CREDENTIAL_ID)"
+    required: true
+  ssl-totp-secret:
+    description: "SSL.com TOTP secret (secrets.WINDOWS_SSL_TOTP_SECRET)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    # Inner binaries must be signed before the MSI is built, because WiX embeds
+    # them into the installer.
+    - name: Sign inner binaries
+      if: ${{ inputs.should-sign == 'true' }}
+      uses: ./.github/actions/sign-windows
+      with:
+        ssl-username: ${{ inputs.ssl-username }}
+        ssl-password: ${{ inputs.ssl-password }}
+        ssl-credential-id: ${{ inputs.ssl-credential-id }}
+        ssl-totp-secret: ${{ inputs.ssl-totp-secret }}
+        staging-dir: ${{ runner.temp }}\sign-stage
+
+    - name: Build MSI
+      shell: pwsh
+      run: python ./scripts/package.py
+
+    - name: Locate MSI
+      id: msi-path
+      shell: pwsh
+      run: |
+        $msi = (Get-ChildItem dist/*.msi | Select-Object -First 1).FullName
+        if (-not $msi) { throw "no MSI found in dist/" }
+        "path=$msi" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+    - name: Sign MSI
+      if: ${{ inputs.should-sign == 'true' }}
+      uses: SSLcom/esigner-codesign@develop
+      with:
+        command: sign
+        username: ${{ inputs.ssl-username }}
+        password: ${{ inputs.ssl-password }}
+        credential_id: ${{ inputs.ssl-credential-id }}
+        totp_secret: ${{ inputs.ssl-totp-secret }}
+        file_path: ${{ steps.msi-path.outputs.path }}
+        override: "true"
+        environment_name: PROD
+
+        # The pre-sign malware scan draws on a separate, much smaller quota than signing and
+        # exhausts it across a full release; signing produces a valid signature without it.
+        malware_block: "false"
+
+    - name: Verify MSI is signed
+      if: ${{ inputs.should-sign == 'true' }}
+      shell: pwsh
+      run: |
+        $sig = Get-AuthenticodeSignature "${{ steps.msi-path.outputs.path }}"
+        if ($sig.Status -eq 'NotSigned' -or -not $sig.SignerCertificate) {
+          throw "MSI is not signed (Status: $($sig.Status))"
+        }
+        Write-Host "OK: MSI signed by $($sig.SignerCertificate.Subject) [Status: $($sig.Status)]"

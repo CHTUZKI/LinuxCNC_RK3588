@@ -1,0 +1,14 @@
+[Unit]
+Description=IgH EtherCAT Master
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/etc/init.d/ethercat start
+ExecStop=/etc/init.d/ethercat stop
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

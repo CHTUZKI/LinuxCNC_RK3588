@@ -1,0 +1,49 @@
+# io.hal — EK1814 Digital I/O wiring
+#
+# EK1814: 4 digital inputs + 4 digital outputs (24V)
+#
+# Pin naming: lcec.master0.ek1814.din-<N> / dout-<N>
+#
+# I/O allocation:
+#   din-0  : E-stop button (NC: closed=safe, open=estop)
+#   din-1  : Tool probe trigger
+#   din-2  : Spindle at-speed (VFD output)
+#   din-3  : Door interlock (NC: closed=safe, open=door open)
+#   dout-0 : Coolant mist solenoid  (M7)
+#   dout-1 : Coolant flood pump     (M8)
+#   dout-2 : Spindle enable relay   (VFD run)
+#   dout-3 : Spindle direction relay (0=forward, 1=reverse)
+
+# =====================================================================
+# Digital Outputs — coolant + spindle control
+# =====================================================================
+
+# --- Coolant: M7 = mist, M8 = flood, M9 = off ---
+# iocontrol coolant pins are HAL_OUT bit, directly drive EK1814 outputs
+net coolant-mist  iocontrol.0.coolant-mist  => lcec.master0.ek1814.dout-0
+net coolant-flood iocontrol.0.coolant-flood => lcec.master0.ek1814.dout-1
+
+# --- Spindle enable / direction ---
+# spindle.0.on is HAL_OUT bit (1 = spindle should run)
+# spindle.0.forward / reverse are HAL_OUT bit
+net spindle-enable  spindle.0.on      => lcec.master0.ek1814.dout-2
+net spindle-reverse spindle.0.reverse => lcec.master0.ek1814.dout-3
+
+# =====================================================================
+# Digital Inputs — estop, probe, at-speed, door
+# =====================================================================
+
+# --- E-stop: NC button, closed = safe (din = 1), open = estop (din = 0) ---
+# Use din-0-not so that estop-in is TRUE when button is pressed (open)
+net estop-in lcec.master0.ek1814.din-0-not => iocontrol.0.emc-enable-in
+
+# --- Tool probe: trigger signal to motion.probe-input ---
+net probe-in lcec.master0.ek1814.din-1 => motion.probe-input
+
+# --- Spindle at-speed: VFD output signal ---
+# Selected via mux2 in postgui.hal (sim vs real VFD)
+net spindle-at-speed-vfd lcec.master0.ek1814.din-2
+
+# --- Door interlock: NC switch, closed = safe (din = 1), open = alarm ---
+# Triggers gmoccapy user message "door-open" when door is open
+net door-open lcec.master0.ek1814.din-3-not => gmoccapy.messages.door-open

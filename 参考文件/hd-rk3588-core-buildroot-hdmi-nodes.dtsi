@@ -1,0 +1,192 @@
+// Extracted HDMI-related nodes from Buildroot live DT (working HDMI)
+// Source board: 192.168.1.15 Buildroot 5.10.198, HDMI-A-1 connected 1920x1080
+
+	hdmi@fde80000 {
+		compatible = "rockchip,rk3588-dw-hdmi";
+		reg = <0x00 0xfde80000 0x00 0x10000 0x00 0xfde90000 0x00 0x10000>;
+		interrupts = <0x00 0xa9 0x04 0x00 0xaa 0x04 0x00 0xab 0x04 0x00 0xac 0x04 0x00 0x168 0x04>;
+		clocks = <0x02 0x221 0x02 0x265 0x02 0x222 0x02 0x223 0x02 0x246 0x02 0x274 0x02 0x275 0x02 0x276 0x02 0x277 0x05 0x103>;
+		clock-names = "pclk\0hpd\0earc\0hdmitx_ref\0aud\0dclk_vp0\0dclk_vp1\0dclk_vp2\0dclk_vp3\0hclk_vo1\0link_clk";
+		resets = <0x02 0x3d0 0x02 0x49c>;
+		reset-names = "ref\0hdp";
+		power-domains = <0x64 0x1a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <0x104 0x105 0x106 0x107>;
+		reg-io-width = <0x04>;
+		rockchip,grf = <0xca>;
+		rockchip,vo1_grf = <0xda>;
+		phys = <0x108>;
+		phy-names = "hdmi";
+		#sound-dai-cells = <0x00>;
+		status = "okay";
+		enable-gpios = <0x109 0x09 0x00>;
+		phandle = <0x1e0>;
+
+		ports {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+
+			port@0 {
+				reg = <0x00>;
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				phandle = <0x296>;
+
+				endpoint@0 {
+					reg = <0x00>;
+					remote-endpoint = <0x3b>;
+					status = "okay";
+					phandle = <0xde>;
+				};
+
+				endpoint@1 {
+					reg = <0x01>;
+					remote-endpoint = <0x10a>;
+					status = "disabled";
+					phandle = <0xe4>;
+				};
+
+				endpoint@2 {
+					reg = <0x02>;
+					remote-endpoint = <0x10b>;
+					status = "disabled";
+					phandle = <0xea>;
+				};
+			};
+		};
+	};
+
+	hdmi@fdea0000 {
+		compatible = "rockchip,rk3588-dw-hdmi";
+		reg = <0x00 0xfdea0000 0x00 0x10000 0x00 0xfdeb0000 0x00 0x10000>;
+		interrupts = <0x00 0xad 0x04 0x00 0xae 0x04 0x00 0xaf 0x04 0x00 0xb0 0x04 0x00 0x169 0x04>;
+		clocks = <0x02 0x224 0x02 0x266 0x02 0x225 0x02 0x226 0x02 0x24c 0x02 0x274 0x02 0x275 0x02 0x276 0x02 0x277 0x05 0x1b3>;
+		clock-names = "pclk\0hpd\0earc\0hdmitx_ref\0aud\0dclk_vp0\0dclk_vp1\0dclk_vp2\0dclk_vp3\0hclk_vo1\0link_clk";
+		resets = <0x02 0x3d7 0x02 0x49d>;
+		reset-names = "ref\0hdp";
+		power-domains = <0x64 0x1a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <0x1b4 0x1b5 0x1b6 0x1b7>;
+		reg-io-width = <0x04>;
+		rockchip,grf = <0xca>;
+		rockchip,vo1_grf = <0xda>;
+		phys = <0x1b8>;
+		phy-names = "hdmi";
+		#sound-dai-cells = <0x00>;
+		status = "okay";
+		enable-gpios = <0x109 0x0a 0x00>;
+		phandle = <0x1e2>;
+
+		ports {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+
+			port@0 {
+				reg = <0x00>;
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+				phandle = <0x48a>;
+
+				endpoint@0 {
+					reg = <0x00>;
+					remote-endpoint = <0x1b9>;
+					status = "disabled";
+					phandle = <0xe1>;
+				};
+
+				endpoint@1 {
+					reg = <0x01>;
+					remote-endpoint = <0x3e>;
+					status = "okay";
+					phandle = <0xe7>;
+				};
+
+				endpoint@2 {
+					reg = <0x02>;
+					remote-endpoint = <0x1ba>;
+					status = "disabled";
+					phandle = <0xef>;
+				};
+			};
+		};
+	};
+
+	hdmiphy@fed60000 {
+		compatible = "rockchip,rk3588-hdptx-phy-hdmi";
+		reg = <0x00 0xfed60000 0x00 0x2000>;
+		clocks = <0x02 0x2b5 0x02 0x267>;
+		clock-names = "ref\0apb";
+		resets = <0x02 0x48e 0x02 0x485 0x02 0xc003b 0x02 0xc003c 0x02 0xc003d 0x02 0x48c 0x02 0x48d>;
+		reset-names = "phy\0apb\0init\0cmn\0lane\0ropll\0lcpll";
+		rockchip,grf = <0x196>;
+		#phy-cells = <0x00>;
+		status = "okay";
+		phandle = <0x108>;
+
+		clk-port {
+			#clock-cells = <0x00>;
+			status = "okay";
+			phandle = <0x103>;
+		};
+	};
+
+	hdmiphy@fed70000 {
+		compatible = "rockchip,rk3588-hdptx-phy-hdmi";
+		reg = <0x00 0xfed70000 0x00 0x2000>;
+		clocks = <0x02 0x2b5 0x02 0x268>;
+		clock-names = "ref\0apb";
+		resets = <0x02 0x491 0x02 0x486 0x02 0xc003f 0x02 0xc0040 0x02 0xc0041 0x02 0x48f 0x02 0x490>;
+		reset-names = "phy\0apb\0init\0cmn\0lane\0ropll\0lcpll";
+		rockchip,grf = <0x1d5>;
+		#phy-cells = <0x00>;
+		status = "okay";
+		phandle = <0x1b8>;
+
+		clk-port {
+			#clock-cells = <0x00>;
+			status = "okay";
+			phandle = <0x1b3>;
+		};
+	};
+
+/* MISSING route-hdmi0 */
+
+/* MISSING route-hdmi1 */
+
+			route-hdmi0 {
+				overscan,bottom_margin = <0x64>;
+				overscan,top_margin = <0x64>;
+				overscan,right_margin = <0x64>;
+				overscan,left_margin = <0x64>;
+				video,aspect_ratio = <0x00>;
+				video,flags = <0x05>;
+				video,vrefresh = <0x3c>;
+				video,crtc_vsync_end = <0x441>;
+				video,crtc_hsync_end = <0x804>;
+				video,vdisplay = <0x438>;
+				video,hdisplay = <0x780>;
+				video,clock = <0x24414>;
+				logo,ymirror = <0x00>;
+				logo,bpp = <0x10>;
+				logo,height = <0x10e>;
+				logo,width = <0x28e>;
+				logo,offset = <0x61000>;
+				status = "okay";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <0x3b>;
+				phandle = <0x226>;
+			};
+
+			route-hdmi1 {
+				status = "okay";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <0x3e>;
+				phandle = <0x229>;
+			};
+

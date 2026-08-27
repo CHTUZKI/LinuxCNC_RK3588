@@ -1,0 +1,3 @@
+obj-m += ssdc_homecomp.o
+include /home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc/2.9.10+git/git/src/Makefile.modinc
+EXTRA_CFLAGS += -I/home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc/2.9.10+git/git/include -I/home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc/2.9.10+git/git/src -I/home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc/2.9.10+git/git/src/emc/motion -I/home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc/2.9.10+git/recipe-sysroot/usr/include/linuxcnc

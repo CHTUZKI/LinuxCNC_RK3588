@@ -1,0 +1,118 @@
+#!/bin/sh
+# IgH EtherCAT Master init script — reads /etc/ethercat.conf and loads modules
+# with the correct parameters (main_devices=<MAC>, ec_generic, etc.)
+### BEGIN INIT INFO
+# Provides:          ethercat
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: IgH EtherCAT Master
+### END INIT INFO
+
+ETHERCAT=/usr/sbin/ethercat
+CONF=/etc/ethercat.conf
+
+# Source config
+[ -f "$CONF" ] && . "$CONF"
+
+# Build main_devices MAC list from MASTER0_DEVICE (interface name or MAC)
+build_main_devices() {
+    MAIN_DEVS=''
+    i=0
+    while true; do
+        eval dev=\${MASTER${i}_DEVICE:-}
+        [ -z "$dev" ] && break
+        # If it looks like an interface name, resolve to MAC
+        if [ -e /sys/class/net/$dev/address ]; then
+            mac=$(cat /sys/class/net/$dev/address)
+        else
+            mac=$dev
+        fi
+        if [ -z "$MAIN_DEVS" ]; then
+            MAIN_DEVS=$mac
+        else
+            MAIN_DEVS="$MAIN_DEVS,$mac"
+        fi
+        i=$((i+1))
+    done
+}
+
+start() {
+    echo -n "Starting EtherCAT master: "
+    if lsmod | grep -q '^ec_master '; then
+        echo "already running"
+        exit 0
+    fi
+
+    build_main_devices
+
+    # Bring EtherCAT interfaces UP so the PHY is powered and link is
+    # established.  ec_generic uses a raw socket on the interface; if the
+    # interface is down, the PHY is powered off and ec_generic cannot
+    # send/receive EtherCAT frames (Link stays DOWN, no slaves found).
+    i=0
+    while true; do
+        eval dev=\${MASTER${i}_DEVICE:-}
+        [ -z "$dev" ] && break
+        if [ -e /sys/class/net/$dev ]; then
+            ip link set "$dev" up 2>/dev/null || true
+        fi
+        i=$((i+1))
+    done
+
+    # Load master module with main_devices MAC list
+    MOD_ARGS=""
+    [ -n "$MAIN_DEVS" ] && MOD_ARGS="main_devices=$MAIN_DEVS"
+    eval DEBUG_LVL=\${MASTER0_DEBUG_LEVEL:-0}
+    [ "$DEBUG_LVL" != "0" ] && MOD_ARGS="$MOD_ARGS debug_level=$DEBUG_LVL"
+    modprobe ec_master $MOD_ARGS 2>/dev/null || true
+    sleep 0.3
+
+    # Load device modules (generic by default)
+    eval DMODS=\${DEVICE_MODULES:-generic}
+    for m in $DMODS; do
+        modprobe ec_$m 2>/dev/null || true
+    done
+    sleep 0.5
+
+    if [ -e /dev/EtherCAT0 ]; then
+        echo "done"
+        exit 0
+    else
+        echo "failed (no /dev/EtherCAT0)"
+        exit 1
+    fi
+}
+
+stop() {
+    echo -n "Stopping EtherCAT master: "
+    # Unload device modules first
+    eval DMODS=\${DEVICE_MODULES:-generic}
+    for m in $DMODS; do
+        rmmod ec_$m 2>/dev/null || true
+    done
+    sleep 0.2
+    rmmod ec_master 2>/dev/null || true
+    echo "done"
+}
+
+status() {
+    if lsmod | grep -q '^ec_master '; then
+        echo "EtherCAT master is running"
+        $ETHERCAT master 2>/dev/null
+        exit 0
+    else
+        echo "EtherCAT master is stopped"
+        exit 3
+    fi
+}
+
+case "$1" in
+    start)   start ;;
+    stop)    stop ;;
+    restart|force-reload) stop; sleep 1; start ;;
+    status)  status ;;
+    *) echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac
+exit 0

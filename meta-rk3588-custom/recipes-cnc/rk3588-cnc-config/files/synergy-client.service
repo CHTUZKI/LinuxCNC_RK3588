@@ -1,0 +1,14 @@
+[Unit]
+Description=Synergy Client (mouse/keyboard sharing)
+After=graphical.target
+Requires=graphical.target
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/synergy-client -f --name cnc-board 192.168.1.2
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target

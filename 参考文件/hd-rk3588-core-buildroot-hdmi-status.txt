@@ -1,0 +1,50 @@
+kernel=5.10.198
+os=Buildroot 2021.11 rockchip_rk3588 vanxoak
+model=Rockchip RK3588 vanxoak-iot LP4 Board 
+compatible=rockchip,rk3588-evb4-lp4-v10 rockchip,rk3588 
+card0-HDMI-A-1: status=connected enabled=enabled edid=256
+card0-HDMI-A-2: status=disconnected enabled=disabled edid=0
+card0-DSI-1: status=connected enabled=enabled edid=0
+modes_hdmi1:
+1920x1080
+1920x1080
+1920x1080
+1600x900
+1280x1024
+1152x864
+1280x720
+1280x720
+enable_gpio= gpio-138 (                    |enable              ) out hi 
+device fde80000.hdmi
+group hdmim0-tx0-cec
+device fde80000.hdmi
+device fde80000.hdmi
+group hdmim0-tx0-hpd
+device fde80000.hdmi
+device fde80000.hdmi
+group hdmim0-tx0-scl
+device fde80000.hdmi
+device fde80000.hdmi
+group hdmim0-tx0-sda
+device fde80000.hdmi
+device fdea0000.hdmi
+group hdmim2-tx1-cec
+device fdea0000.hdmi
+device fdea0000.hdmi
+group hdmim0-tx1-hpd
+device fdea0000.hdmi
+device fdea0000.hdmi
+group hdmim1-tx1-scl
+device fdea0000.hdmi
+device fdea0000.hdmi
+group hdmim1-tx1-sda
+device fdea0000.hdmi
+
+NOTE:
+- Buildroot enables BOTH hdmi0@fde80000 and hdmi1@fdea0000 (status okay).
+- Live: HDMI-A-1 connected+enabled with EDID 256 (desktop visible); HDMI-A-2 disconnected.
+- enable GPIO for hdmi1 is GPIO4_PB2 (same as our DTS); hdmi0 uses adjacent pin on same bank.
+- Files:
+  - hd-rk3588-core-buildroot-live.dtb  (raw FDT from /sys/firmware/fdt)
+  - hd-rk3588-core-buildroot-live.dts  (decompiled full DT)
+  - hd-rk3588-core-buildroot-hdmi-nodes.dtsi (HDMI/PHY excerpt)

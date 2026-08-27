@@ -1,0 +1,23 @@
+From: xuning <1729984965@qq.com>
+Subject: [PATCH] drm/rockchip: dw-hdmi: drive enable GPIO high at probe
+
+Vendor driver requests enable-gpios with GPIOD_ASIS and only switches it
+to output when the encoder is enabled. On HD-RK3588-CORE the external
+HDMI buffer/level-shifter needs enable asserted earlier so HPD and DDC
+can work before the first modeset. Request as GPIOD_OUT_HIGH at probe.
+
+Signed-off-by: xuning <1729984965@qq.com>
+---
+--- a/drivers/gpu/drm/rockchip/dw_hdmi-rockchip.c
++++ b/drivers/gpu/drm/rockchip/dw_hdmi-rockchip.c
+@@ -2046,8 +2046,9 @@
+ 		return PTR_ERR(hdmi->link_clk);
+ 	}
+ 
++	/* Assert early so HPD/DDC through external buffer work before modeset */
+ 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
+-						    GPIOD_ASIS);
++						    GPIOD_OUT_HIGH);
+ 	if (IS_ERR(hdmi->enable_gpio)) {
+ 		ret = PTR_ERR(hdmi->enable_gpio);
+ 		dev_err(hdmi->dev, "failed to request enable GPIO: %d\n", ret);

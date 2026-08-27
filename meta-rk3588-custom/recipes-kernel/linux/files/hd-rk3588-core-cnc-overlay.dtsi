@@ -1,0 +1,11 @@
+/*
+ * CNC overlay: disable NPU, keep GPU for X11/Axis.
+ * Appended when RK3588_KERNEL_CNC=1.
+ */
+&rknpu {
+	status = "disabled";
+};
+
+&rknpu_mmu {
+	status = "disabled";
+};

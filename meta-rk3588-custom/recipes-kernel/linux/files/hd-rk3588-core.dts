@@ -1,0 +1,408 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Vanxak HD-RK3588-CORE (vanxoak-iot LP4)
+ *
+ * Based on Rockchip vendor rk3588-evb4-lp4-v10-linux.dts (develop-6.1),
+ * aligned with board bring-up + official Buildroot live DT:
+ *   - UART FIQ console @ 115200
+ *   - RJ45 on GMAC1, PHY MDIO addr 0, reset GPIO3_PB7
+ *   - NPU buck on I2C1m2 (fea90000)
+ *   - Dual HDMI TX (hdmi0 + hdmi1)
+ *   - USB2/USB3 host, SD, PCIe RC, SATA (match Buildroot)
+ */
+
+/dts-v1/;
+
+#include "dt-bindings/phy/phy-snps-pcie3.h"
+#include "rk3588-evb4-lp4.dtsi"
+#include "rk3588-linux.dtsi"
+
+/ {
+	model = "Vanxak HD-RK3588-CORE (vanxoak-iot LP4)";
+	compatible = "vanxak,hd-rk3588-core", "rockchip,rk3588-evb4-lp4-v10", "rockchip,rk3588";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 root=PARTLABEL=rootfsA rw rootwait";
+	};
+
+	/* EVB4 reserves this for PCIe EP; this board is RC. Free it. */
+	reserved-memory {
+		/delete-node/ dma-trans@3c000000;
+	};
+
+	/*
+	 * PCIe 3.0 slot 3V3 — Buildroot live DT uses GPIO2_PC5
+	 * (EVB1 uses a different pin; follow this board's official image).
+	 */
+	vcc3v3_pcie30: vcc3v3-pcie30 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie30";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+};
+
+/* Board UART is 115200 end-to-end (DDR / MiniLoader / Linux). */
+&fiq_debugger {
+	rockchip,baudrate = <115200>;
+};
+
+/*
+ * work_led in rk3588-evb.dtsi uses GPIO3_PB7 — same pin as GMAC1 PHY reset.
+ * Drop it so the PHY can own the line.
+ */
+/delete-node/ &work_led;
+
+/* GMAC0 (fe1b0000) — second RJ45, same PHY topology as factory Buildroot DT.
+ * systemd-networkd renames to ec0 for SOEM EtherCAT (no IP). */
+&gmac0 {
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+	/delete-property/ snps,reset-gpio;
+	/delete-property/ snps,reset-active-low;
+	/delete-property/ snps,reset-delays-us;
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac0_miim
+		     &gmac0_tx_bus2
+		     &gmac0_rx_bus2
+		     &gmac0_rgmii_clk
+		     &gmac0_rgmii_bus>;
+	tx_delay = <0x44>;
+	rx_delay = <0x00>;
+	assigned-clocks = <&cru CLK_GMAC_125M>, <&cru CLK_GMAC_50M>;
+	assigned-clock-rates = <125000000>, <50000000>;
+	phy-handle = <&rgmii_phy0>;
+	status = "okay";
+};
+
+&mdio0 {
+	rgmii_phy0: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+		reset-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+	};
+};
+
+/* GMAC1 (fe1c0000) — primary RJ45 (DHCP / management). */
+&gmac1 {
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+	/* PHY reset owned by phy node (keeps RXCLK alive after deassert). */
+	/delete-property/ snps,reset-gpio;
+	/delete-property/ snps,reset-active-low;
+	/delete-property/ snps,reset-delays-us;
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1_miim
+		     &gmac1_tx_bus2
+		     &gmac1_rx_bus2
+		     &gmac1_rgmii_clk
+		     &gmac1_rgmii_bus>;
+	tx_delay = <0x44>;
+	rx_delay = <0x00>;
+	assigned-clocks = <&cru CLK_GMAC_125M>, <&cru CLK_GMAC_50M>;
+	assigned-clock-rates = <125000000>, <50000000>;
+	phy-handle = <&rgmii_phy1>;
+	status = "okay";
+};
+
+&mdio1 {
+	/delete-node/ phy@1;
+
+	/* Factory node name is phy@1 but MDIO address is 0. */
+	rgmii_phy1: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+		reset-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+	};
+};
+
+/*
+ * Factory live DT places vdd_npu_s0 on i2c@fea90000 (i2c1) with i2c1m2 pins.
+ * Default i2c1m0 uses GPIO0_B5/B6 which FIQ debugger already claimed → NPU deferred.
+ */
+&i2c2 {
+	/delete-node/ rk8602@42;
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1m2_xfer>;
+
+	vdd_npu_s0: vdd_npu_mem_s0: rk8602@42 {
+		compatible = "rockchip,rk8602";
+		reg = <0x42>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "rk860x-reg";
+		regulator-name = "vdd_npu_s0";
+		regulator-min-microvolt = <550000>;
+		regulator-max-microvolt = <950000>;
+		regulator-ramp-delay = <2300>;
+		rockchip,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu_s0>;
+	mem-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
+/* Mali-G610 (arm,mali-valhall); keep GPU rail on so kbase can probe. */
+&vdd_gpu_s0 {
+	regulator-always-on;
+	regulator-boot-on;
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	mem-supply = <&vdd_gpu_s0>;
+	status = "okay";
+};
+
+/*
+ * Dual HDMI TX — match Buildroot live DT (working desktop on HDMI-A-1):
+ *   hdmi0@fde80000 enable GPIO4_PB1 → VP0
+ *   hdmi1@fdea0000 enable GPIO4_PB2 → VP1
+ */
+&hdmi0 {
+	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&hdmi0_in_vp0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
+};
+
+&route_hdmi0 {
+	status = "okay";
+	connect = <&vp0_out_hdmi0>;
+};
+
+&hdmi0_sound {
+	status = "okay";
+};
+
+&hdmi1 {
+	enable-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&hdmi1_in_vp1 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi1 {
+	status = "okay";
+};
+
+&route_hdmi1 {
+	status = "okay";
+	connect = <&vp1_out_hdmi1>;
+};
+
+&hdmi1_sound {
+	status = "okay";
+};
+
+/* I2S for HDMI audio (EVB sound cards bind i2s5/i2s6). */
+&i2s5_8ch {
+	status = "okay";
+};
+
+&i2s6_8ch {
+	status = "okay";
+};
+
+/* onboard eMMC (mmc0 / fe2e0000) — 默认 HS400+CQE 在板子上频繁 CQE recovery/死机，
+ * 降为 HS200 150MHz 并关闭 CMDQ。 */
+&sdhci {
+	max-frequency = <150000000>;
+	bus-width = <8>;
+	no-sdio;
+	no-sd;
+	non-removable;
+	/delete-property/ mmc-hs400-1_8v;
+	/delete-property/ mmc-hs400-enhanced-strobe;
+	/delete-property/ supports-cqe;
+	mmc-hs200-1_8v;
+	status = "okay";
+};
+
+/* SD card — Buildroot okay; EVB left disabled. */
+&sdmmc {
+	max-frequency = <150000000>;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	sd-uhs-sdr104;
+	vqmmc-supply = <&vccio_sd_s0>;
+	status = "okay";
+};
+
+/* USB2 host — undo EVB4 disables (match Buildroot / EVB). */
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy3_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+/* USB3 host — undo EVB4 disables. */
+&usbhost3_0 {
+	status = "okay";
+};
+
+&usbhost_dwc3_0 {
+	status = "okay";
+};
+
+/*
+ * No Type-C controller on this core board (Buildroot has no fusb302).
+ * Delete fusb302 entirely — disabling alone still leaves phandle refs to
+ * dwc3/usbdp endpoints that we strip below.
+ */
+/delete-node/ &usbc0;
+
+&i2c8 {
+	status = "disabled";
+};
+
+&usbdrd_dwc3_0 {
+	dr_mode = "host";
+	/delete-property/ usb-role-switch;
+	/delete-node/ port;
+};
+
+&usbdp_phy0 {
+	/delete-property/ orientation-switch;
+	/delete-property/ svid;
+	/delete-property/ sbu1-dc-gpios;
+	/delete-property/ sbu2-dc-gpios;
+	/delete-node/ port;
+};
+
+/* Combphy for SATA0 + PCIe2x1 (Buildroot enables those controllers). */
+&combphy0_ps {
+	status = "okay";
+};
+
+&combphy1_ps {
+	status = "okay";
+};
+
+&sata0 {
+	status = "okay";
+};
+
+/* PCIe2 x1 — Buildroot reset GPIO1_PB4. */
+&pcie2x1l0 {
+	reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+/* PCIe3 x4 as Root Complex (not EVB4 endpoint). */
+&pcie30phy {
+	rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
+	status = "okay";
+};
+
+/* EVB4 does not define this label; match EVB / Buildroot clkreq GPIO4_PB4. */
+&pinctrl {
+	pcie30x4 {
+		pcie30x4_clkreqn_m1: pcie30x4-clkreqn-m1 {
+			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&pcie3x4 {
+	compatible = "rockchip,rk3588-pcie", "snps,dw-pcie";
+	/delete-property/ memory-region;
+	/delete-property/ busno;
+	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie30>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie30x4_clkreqn_m1>;
+	status = "okay";
+};
+
+/* Core board has no MIPI panel / DP Alt-Mode / touch from EVB4. */
+&dsi0 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	status = "disabled";
+};
+
+&route_dsi0 {
+	status = "disabled";
+};
+
+&dp0 {
+	status = "disabled";
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&hynitron {
+	status = "disabled";
+};
+
+&i2c6 {
+	status = "disabled";
+};

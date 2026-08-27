@@ -1,0 +1,81 @@
+name: "Sign Windows binaries with SSL.com eSigner"
+description: Batch-sign the built Synergy binaries with SSL.com eSigner.
+
+inputs:
+  ssl-username:
+    description: "SSL.com eSigner username (secrets.WINDOWS_SSL_USERNAME)"
+    required: true
+  ssl-password:
+    description: "SSL.com eSigner password (secrets.WINDOWS_SSL_PASSWORD)"
+    required: true
+  ssl-credential-id:
+    description: "SSL.com credential ID (secrets.WINDOWS_SSL_CREDENTIAL_ID)"
+    required: true
+  ssl-totp-secret:
+    description: "SSL.com TOTP secret (secrets.WINDOWS_SSL_TOTP_SECRET)"
+    required: true
+  bin-dir:
+    description: "Directory holding the built binaries to sign"
+    required: false
+    default: build/bin
+  staging-dir:
+    description: "Temp directory used to batch_sign all binaries with one OTP"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Stage binaries for batch signing
+      shell: pwsh
+      run: |
+        $stageIn = "${{ inputs.staging-dir }}\in"
+        $stageOut = "${{ inputs.staging-dir }}\out"
+        New-Item -ItemType Directory -Force -Path $stageIn | Out-Null
+        New-Item -ItemType Directory -Force -Path $stageOut | Out-Null
+
+        $exes = Get-ChildItem "${{ inputs.bin-dir }}/*.exe" |
+          Where-Object { $_.Name -notmatch 'test' }
+        if (-not $exes) {
+          throw "No binaries found to sign in ${{ inputs.bin-dir }}"
+        }
+        foreach ($exe in $exes) {
+          Write-Host "Staging $($exe.Name)"
+          Copy-Item $exe.FullName "$stageIn/$($exe.Name)" -Force
+        }
+
+    - name: Batch sign with SSL.com eSigner
+      uses: SSLcom/esigner-codesign@develop
+      with:
+        command: batch_sign
+        username: ${{ inputs.ssl-username }}
+        password: ${{ inputs.ssl-password }}
+        credential_id: ${{ inputs.ssl-credential-id }}
+        totp_secret: ${{ inputs.ssl-totp-secret }}
+        dir_path: ${{ inputs.staging-dir }}\in
+        output_path: ${{ inputs.staging-dir }}\out
+        environment_name: PROD
+
+        # The pre-sign malware scan draws on a separate, much smaller quota than signing and
+        # exhausts it across a full payload; signing produces a valid signature without it.
+        malware_block: "false"
+
+    - name: Copy signed binaries back to the bin directory
+      shell: pwsh
+      run: |
+        $stageOut = "${{ inputs.staging-dir }}\out"
+        Get-ChildItem "$stageOut/*.exe" | ForEach-Object {
+          Write-Host "Restoring signed $($_.Name)"
+          Copy-Item $_.FullName "${{ inputs.bin-dir }}/$($_.Name)" -Force
+        }
+
+    - name: Verify binaries are actually signed
+      shell: pwsh
+      run: |
+        Get-ChildItem "${{ inputs.staging-dir }}\out/*.exe" | ForEach-Object {
+          $f = "${{ inputs.bin-dir }}/$($_.Name)"
+          $sig = Get-AuthenticodeSignature $f
+          if ($sig.Status -eq 'NotSigned' -or -not $sig.SignerCertificate) {
+            throw "No signature on $f (Status: $($sig.Status)); the sign step did not produce a signed file. Check the batch_sign output_path."
+          }
+          Write-Host "OK: $f signed by $($sig.SignerCertificate.Subject) [Status: $($sig.Status)]"
+        }

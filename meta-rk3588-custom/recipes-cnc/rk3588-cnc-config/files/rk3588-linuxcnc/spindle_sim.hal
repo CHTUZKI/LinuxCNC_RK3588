@@ -1,0 +1,58 @@
+# spindle_sim.hal — Simulated spindle (software encoder)
+#
+# TODO: replace with real VFD spindle (analog 0-10V via EtherCAT I/O
+# or modbus). This file is copied from sim.gmoccapy so the GUI has
+# spindle feedback during bring-up.
+
+loadrt encoder names=encoder_0
+loadrt sim_encoder names=sim_encoder_0
+loadrt limit2 names=limit_speed
+
+addf limit_speed servo-thread
+
+# spindle speed control
+net spindle-speed-cmd  spindle.0.speed-out => limit_speed.in
+net spindle-speed-limited limit_speed.out => sim_encoder_0.speed
+
+# simulate spindle mass
+setp limit_speed.maxv 3000.0
+
+# spindle encoder
+net spindle-phase-A sim_encoder_0.phase-A => encoder_0.phase-A
+net spindle-phase-B sim_encoder_0.phase-B => encoder_0.phase-B
+net spindle-phase-Z sim_encoder_0.phase-Z => encoder_0.phase-Z
+
+setp sim_encoder_0.ppr 12
+setp sim_encoder_0.scale 60
+setp encoder_0.position-scale 48
+
+net spindle-index-enable spindle.0.index-enable <=> encoder_0.index-enable
+net spindle-pos encoder_0.position => spindle.0.revs
+
+loadrt lowpass names=lowpass_velocity
+# NOTE: scale component is already loaded in core_lcec.hal; just add a new instance name.
+# If core_lcec.hal hasn't loaded scale yet, uncomment the next line:
+# loadrt scale names=scale_to_rpm
+net spindle-rps-raw encoder_0.velocity lowpass_velocity.in
+net spindle-rps-filtered lowpass_velocity.out scale_to_rpm.in spindle.0.speed-in
+net spindle-rpm-filtered scale_to_rpm.out
+setp scale_to_rpm.gain 60
+setp lowpass_velocity.gain .07
+addf lowpass_velocity servo-thread
+addf scale_to_rpm servo-thread
+
+loadrt near names=near_speed
+addf near_speed servo-thread
+setp near_speed.scale 1.1
+setp near_speed.difference 10
+net spindle-speed-cmd => near_speed.in1
+net spindle-rpm-filtered => near_speed.in2
+net spindle-at-speed-sim near_speed.out spindle.0.at-speed
+
+net spindle-fwd <= spindle.0.forward
+
+addf encoder.capture-position servo-thread
+addf sim-encoder.update-speed servo-thread
+
+addf sim-encoder.make-pulses    base-thread
+addf encoder.update-counters    base-thread

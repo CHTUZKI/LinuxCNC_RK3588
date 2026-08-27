@@ -1,0 +1,56 @@
+From: xuning <1729984965@qq.com>
+Subject: [PATCH] net: stmmac: resume PHY before DMA soft-reset
+
+DWMAC DMA software reset requires a live receive clock. Resume the PHY
+and clear BMCR_PDOWN before stmmac_hw_setup() so RGMII RXCLK is running.
+
+Signed-off-by: xuning <1729984965@qq.com>
+---
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c	2026-07-31 11:57:03.721781791 +0800
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c	2026-07-31 11:57:03.723414852 +0800
+@@ -3854,6 +3854,45 @@
+ 		}
+ 	}
+ 
++	/*
++	 * Synopsys DWMAC soft-reset needs RX clock. For RGMII that clock is
++	 * sourced from the PHY; wake it before stmmac_hw_setup().
++	 */
++	if (priv->mii) {
++		struct phy_device *phydev = NULL;
++		int addr, bmcr;
++
++		if (priv->plat->phy_addr >= 0)
++			phydev = mdiobus_get_phy(priv->mii, priv->plat->phy_addr);
++		if (!phydev) {
++			for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
++				phydev = mdiobus_get_phy(priv->mii, addr);
++				if (phydev)
++					break;
++			}
++		}
++		if (phydev) {
++			ret = phy_resume(phydev);
++			if (ret && ret != -EOPNOTSUPP)
++				netdev_dbg(priv->dev,
++					   "phy_resume returned %d\n", ret);
++
++			bmcr = phy_read(phydev, MII_BMCR);
++			if (bmcr >= 0 && (bmcr & BMCR_PDOWN)) {
++				phy_write(phydev, MII_BMCR, bmcr & ~BMCR_PDOWN);
++				netdev_info(priv->dev,
++					    "cleared PHY BMCR_PDOWN before DMA reset\n");
++			}
++
++			/* Let RXCLK settle after leave power-down / reset */
++			msleep(100);
++
++			if (priv->plat->fix_mac_speed && priv->plat->bsp_priv)
++				priv->plat->fix_mac_speed(priv->plat->bsp_priv,
++						    1000);
++		}
++	}
++
+ 	ret = stmmac_hw_setup(dev, true);
+ 	if (ret < 0) {
+ 		netdev_err(priv->dev, "%s: Hw setup failed\n", __func__);

@@ -1,0 +1,23 @@
+[submodule "poky"]
+	path = poky
+	url = https://git.yoctoproject.org/poky
+	branch = scarthgap
+[submodule "meta-openembedded"]
+	path = meta-openembedded
+	url = https://github.com/openembedded/meta-openembedded.git
+	branch = scarthgap
+[submodule "meta-rockchip"]
+	path = meta-rockchip
+	url = https://git.yoctoproject.org/meta-rockchip
+	branch = scarthgap
+[submodule "meta-arm"]
+	path = meta-arm
+	url = https://git.yoctoproject.org/meta-arm
+	branch = scarthgap
+[submodule "meta-rockchip-updateimg"]
+	path = meta-rockchip-updateimg
+	url = git@github.com:CHTUZKI/meta-rockchip-updateimg.git
+[submodule "meta-qt6"]
+	path = meta-qt6
+	url = https://code.qt.io/yocto/meta-qt6.git
+	branch = 6.8

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Synergy
+Comment=Mouse and keyboard sharing utility
+Exec=synergy
+Icon=com.symless.synergy
+Terminal=false
+Categories=Utility;
+Keywords=keyboard;mouse;sharing;network;share;

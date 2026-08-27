@@ -1,0 +1,48 @@
+name: "CodeQL Analysis"
+
+# This is best run as a standalone workflow, not as part of another workflow like CI
+# because of how GitHub understands the code scanning workflows in it's UI.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [master]
+
+jobs:
+  analyze:
+    if: ${{ !github.event.pull_request.draft }}
+
+    runs-on: ubuntu-latest
+    container: debian:trixie-slim
+    timeout-minutes: 20
+
+    steps:
+      - name: Install container dependencies
+        run: |
+          apt update
+          apt install -y git python3 python3-venv curl unzip gcovr
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0 # SonarCloud needs the full history to assign issues properly
+
+      - name: Config Git safe dir
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Install dependencies
+        id: get-deps
+        uses: ./.github/actions/install-deps
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

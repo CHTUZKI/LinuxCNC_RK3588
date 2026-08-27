@@ -1,0 +1,69 @@
+name: 'Build'
+description: 'Build and package Synergy'
+
+inputs:
+  working-directory:
+    description: "The working directory for the action."
+    required: false
+  target-name:
+    type: string
+    required: true
+    description: "The name of the target being built (e.g. windows-2022-x64)."
+  target-arch:
+    type: string
+    required: true
+    description: "The architecture of the target being built (e.g. x86_64, arm64)."
+  cmake-args:
+    type: string
+    required: false
+    description: "Additional CMake arguments to pass to the configure step."
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup variables
+      id: vars
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        case "${{ runner.os }}" in
+          "Windows")
+            shell="powershell"
+            cmake_args="--preset=windows-release"
+            ;;
+
+          "macOS")
+            shell="bash"
+            cmake_args="$cmake_args --preset=macos-release"
+            cmake_args="$cmake_args -DCMAKE_OSX_SYSROOT=/Applications/Xcode_15.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+            ;;
+
+          "Linux")
+            shell="bash"
+            cmake_args="$cmake_args --preset=linux-release"
+            cmake_args="$cmake_args -DCMAKE_INSTALL_PREFIX=/usr"
+            ;;
+        esac
+
+        cmake_args="$cmake_args -DUSE_TOMLPLUSPLUS=OFF -DUSE_CLI11=OFF"
+
+        cmake_args_input=$(echo "${{ inputs.cmake-args }}" | tr '\n' ' ')
+        cmake_args="$cmake_args $cmake_args_input"
+
+        echo "cmake-args=$cmake_args" >> $GITHUB_OUTPUT
+
+    # By default, workspace dir is not trusted by Git on containers.
+    - name: Setup Git (Linux)
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+    - name: Configure
+      shell: ${{ steps.vars.outputs.shell }}
+      working-directory: ${{ inputs.working-directory }}
+      run: cmake -B build ${{ steps.vars.outputs.cmake-args }}
+
+    - name: Build
+      shell: ${{ steps.vars.outputs.shell }}
+      working-directory: ${{ inputs.working-directory }}
+      run: cmake --build build -j8

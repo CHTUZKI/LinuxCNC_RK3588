@@ -1,0 +1,15 @@
+# estop.hal — Emergency stop chain
+#
+# E-stop button is wired to EK1814 din-0 (NC: closed = safe, open = estop).
+# The actual estop logic is in io.hal:
+#   net estop-in lcec.master0.ek1814.din-0-not => iocontrol.0.emc-enable-in
+#
+# This file handles the estop OK-to-run signal and drive fault reset.
+
+# Estop OK: iocontrol enables motion only when emc-enable-in is TRUE
+# (driven by din-0-not in io.hal). When estop is pressed, emc-enable-in
+# goes FALSE and motion stops immediately.
+
+# Drive fault reset: when estop is released and machine is re-enabled,
+# the CiA402 drives get their fault reset via cia402_home / cia402_enable
+# controlword management (see core_lcec.hal).

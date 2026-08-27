@@ -1,0 +1,6 @@
+# Skeleton HAL for IgH EtherCAT via linuxcnc-ethercat (lcec).
+# Customize ethercat.xml with your actual slave devices, then uncomment.
+#
+# loadrt lcec conf=ethercat.xml
+# addf lcec.read-all servo-thread
+# addf lcec.write-all servo-thread

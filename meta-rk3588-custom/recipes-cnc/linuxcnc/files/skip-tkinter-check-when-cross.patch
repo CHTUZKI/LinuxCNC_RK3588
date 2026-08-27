@@ -1,0 +1,26 @@
+Skip the tkinter version match when cross-compiling: the build host's
+python3-native has no _tkinter module, but target python3-tkinter is
+provided via RDEPENDS.
+
+Upstream-Status: Inappropriate [embedded cross build]
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -1700,6 +1700,9 @@ AC_MSG_RESULT(OK)
+ 
+ if test "$BUILD_GUI" = "yes"; then
+ AC_MSG_CHECKING([match between tk and Tkinter versions])
++if test "$cross_compiling" = yes; then
++    AC_MSG_RESULT([skipped (cross compiling)])
++else
+ if $PYTHON -c 'import sys;raise SystemExit(sys.hexversion<0x3040000)'
+ then
+ 
+@@ -1724,6 +1727,7 @@ if test "$PYTHON_TK_VERSION" != "$TK_VERSION"; then
+ fi
+ AC_MSG_RESULT([$PYTHON_TK_VERSION])
+ fi
++fi
+ 
+ AC_MSG_CHECKING(for site-package location)
+ SITEPY=`$PYTHON -c "import sysconfig; s=sysconfig.get_scheme_names(); print(next((sysconfig.get_path('platlib', m) for m in ('deb_system', 'rpm_prefix') if m in s), '/usr/lib/python3/dist-packages'))"`

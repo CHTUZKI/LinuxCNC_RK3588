@@ -1,0 +1,350 @@
+# All-in-one continuous integration (CI) workflow.
+# Runs on all platforms (Windows, macOS, and Linux)
+# for all events (pull request, release, and schedule).
+
+name: CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      package-type:
+        description: "dev (commit SHA), snapshot (nightly), release (clean semver)"
+        required: false
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - snapshot
+          - release
+      aws-s3-uri:
+        description: "Override AWS S3 target (e.g. s3://bucket/path)"
+        required: false
+        type: string
+      target:
+        description: "Only build one target (e.g. ubuntu-24.04-x86_64)"
+        required: false
+        type: string
+  push:
+    branches:
+      - master*
+  release:
+    types: [published]
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  schedule:
+    - cron: "0 5 * * *" # 5am UTC
+
+# Cancel superseded PR builds; pushes to branches/tags always run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SYNERGY_PRODUCT_NAME: ${{ vars.SYNERGY_PRODUCT_NAME }}
+  SYNERGY_PACKAGE_PREFIX: ${{ vars.SYNERGY_PACKAGE_PREFIX }}
+  SYNERGY_ENABLE_ACTIVATION: ${{ vars.SYNERGY_ENABLE_ACTIVATION }}
+  SYNERGY_VERSION_CHECK: ${{ vars.SYNERGY_VERSION_CHECK }}
+
+  # Used to determine the version number format (should simply use the contents of `VERSION` file).
+  SYNERGY_VERSION_RELEASE: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.package-type == 'release') }}
+
+  # Used to determine the version number format (should set the stage part to "snapshot").
+  SYNERGY_VERSION_SNAPSHOT: ${{ github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.package-type == 'snapshot') }}
+
+  # Gotcha: GitHub checks out a detached head, so the local SHA is not the real head SHA.
+  SYNERGY_VERSION_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  # Quality gate to allow PR merge, used in the branch protection rules.
+  # Even though "ci-" seems redundant, it adds useful context in the GitHub UI.
+  ci-passed:
+    needs: main
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: echo "✅ CI passed" > $GITHUB_STEP_SUMMARY
+
+  setup-matrix:
+    runs-on: ubuntu-latest
+
+    outputs:
+      matrix: ${{ steps.setup-matrix.outputs.matrix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup matrix
+        id: setup-matrix
+        uses: symless/actions/setup-matrix@v1
+        with:
+          file: ".github/matrix.yml"
+          target: ${{ inputs.target }}
+
+  get-version:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Get version
+        id: get-version
+        uses: ./.github/actions/get-version
+
+  main:
+    needs: [get-version, setup-matrix]
+    name: main / ${{ matrix.target.name }}
+    runs-on: ${{ matrix.target.runs-on }}
+    container: ${{ matrix.target.container }}
+    timeout-minutes: 20
+
+    strategy:
+      # Normally, we want to fail fast, but in this case we shouldn't since one target may
+      # fail due to transient issues unrelated to the build.
+      fail-fast: false
+
+      # Build targets are defined in .github/matrix.yml
+      matrix: ${{ fromJSON(needs.setup-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Setup variables
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event.pull_request.draft }}" = "true" ]; then
+            echo "skip-package=true" >> $GITHUB_OUTPUT
+          fi
+
+          if [[ "${{ matrix.target.name }}" == flatpak* ]]; then
+            echo "is-flatpak=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Used by the package script to name the output files.
+          echo "SYNERGY_VERSION=${{ needs.get-version.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Setup Linux
+        if: ${{ runner.os == 'Linux' && !steps.vars.outputs.is-flatpak }}
+        id: setup-linux
+        shell: bash
+        run: |
+          . /etc/os-release
+          os=${ID_LIKE}
+          if [ -z "$os" ]; then
+            os=${ID}
+          fi
+
+          echo "Detected Linux: ${os}"
+          case "${os}" in
+            *debian*)
+              apt-get update
+              apt-get install -y git python3 python3-venv
+              ;;
+
+            *fedora*)
+              dnf install -y git python3
+              ;;
+
+            *suse*)
+              zypper refresh
+              zypper --non-interactive --no-gpg-checks \
+                install -y --force-resolution git python3
+              ;;
+
+            *arch*)
+              pacman -Syu --noconfirm git python sudo
+              useradd -m build
+              echo "package-user=build" >> $GITHUB_OUTPUT
+              ;;
+
+            *)
+              echo "Unsupported Linux: ${os}"
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Install dependencies
+        id: install-deps
+        if: ${{ !steps.vars.outputs.is-flatpak }}
+        uses: ./.github/actions/install-deps
+
+      - name: Build
+        id: build
+        if: ${{ !steps.vars.outputs.is-flatpak }}
+        uses: ./.github/actions/build
+        with:
+          target-name: ${{ matrix.target.name }}
+          target-arch: ${{ matrix.target.arch }}
+          cmake-args: |
+            -DSYNERGY_PRODUCT_NAME=\"${{ env.SYNERGY_PRODUCT_NAME }}\"
+            -DSYNERGY_ENABLE_ACTIVATION=${{ env.SYNERGY_ENABLE_ACTIVATION }}
+            -DSYNERGY_VERSION_CHECK=${{ env.SYNERGY_VERSION_CHECK }}
+            -DSYNERGY_VERSION_RELEASE=${{ env.SYNERGY_VERSION_RELEASE }}
+            -DSYNERGY_VERSION_SNAPSHOT=${{ env.SYNERGY_VERSION_SNAPSHOT }}
+            -DSYNERGY_VERSION_GIT_SHA=${{ env.SYNERGY_VERSION_GIT_SHA }}
+            ${{ steps.install-deps.outputs.vcpkg-cmake-config }}
+
+      - name: Tests
+        if: ${{ !steps.vars.outputs.is-flatpak }}
+        uses: ./.github/actions/run-tests
+        timeout-minutes: 2
+        with:
+          job: ${{ matrix.target.name }}
+          bin-dir: build/bin
+
+      # HACK: Use `envsubst` to replace environment variables in the Flatpak manifest,
+      # since the Flatpak GitHub Action doesn't support passing environment variables.
+      # Only replace the SYNERGY_* variables to avoid accidentally replacing other vars
+      # like ${PWD} and ${FLATPAK_DEST}.
+      - name: Set Flatpak env vars
+        if: ${{ !steps.vars.outputs.skip-package && steps.vars.outputs.is-flatpak }}
+        id: set-flatpak-env-vars
+        run: |
+          vars=$(cat <<'EOF'
+          ${SYNERGY_PRODUCT_NAME}
+          ${SYNERGY_ENABLE_ACTIVATION}
+          ${SYNERGY_VERSION_CHECK}
+          ${SYNERGY_VERSION_RELEASE}
+          ${SYNERGY_VERSION_SNAPSHOT}
+          ${SYNERGY_VERSION_GIT_SHA}
+          EOF
+          )
+
+          set -x
+          manifest="res/dist/flatpak/com.symless.synergy.yml"
+          envsubst "$vars" < $manifest > $manifest.tmp
+          mv $manifest.tmp $manifest
+          cat $manifest
+
+      - name: Package (Linux)
+        if: ${{ !steps.vars.outputs.skip-package && !steps.vars.outputs.is-flatpak && runner.os == 'Linux' }}
+        run: ./scripts/package.py
+        env:
+          LINUX_PACKAGE_USER: ${{ steps.setup-linux.outputs.package-user }}
+
+      - name: Package (Flatpak)
+        if: ${{ !steps.vars.outputs.skip-package && steps.vars.outputs.is-flatpak }}
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: ${{ env.SYNERGY_PACKAGE_PREFIX }}_${{ needs.get-version.outputs.version }}_linux_${{ matrix.target.arch }}.flatpak
+          manifest-path: res/dist/flatpak/com.symless.synergy.yml
+          cache-key: flatpak-builder-${{ matrix.target.arch }}-2.0
+          arch: ${{ matrix.target.arch }}
+          upload-artifact: false
+
+      - name: Package (Windows)
+        if: ${{ !steps.vars.outputs.skip-package && runner.os == 'Windows' }}
+        uses: ./.github/actions/release-windows
+        with:
+          should-sign: ${{ env.SYNERGY_VERSION_RELEASE }}
+          ssl-username: ${{ secrets.WINDOWS_SSL_USERNAME }}
+          ssl-password: ${{ secrets.WINDOWS_SSL_PASSWORD }}
+          ssl-credential-id: ${{ secrets.WINDOWS_SSL_CREDENTIAL_ID }}
+          ssl-totp-secret: ${{ secrets.WINDOWS_SSL_TOTP_SECRET }}
+
+      - name: Package (macOS)
+        if: ${{ !steps.vars.outputs.skip-package && runner.os == 'macOS' }}
+        run: ./scripts/package.py
+        env:
+          APPLE_CODESIGN_ID: ${{ secrets.APPLE_CODESIGN_ID }}
+          APPLE_P12_CERTIFICATE: ${{ secrets.APPLE_P12_CERTIFICATE }}
+          APPLE_P12_PASSWORD: ${{ secrets.APPLE_P12_PASSWORD }}
+          APPLE_NOTARY_USER: ${{ secrets.APPLE_NOTARY_USER }}
+          APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Copy Flatpak bundle to dist
+        if: ${{ !steps.vars.outputs.skip-package && steps.vars.outputs.is-flatpak }}
+        run: |
+          mkdir -p dist
+          cp *.flatpak dist/
+          ls -l dist
+
+      - name: Upload to GitHub
+        uses: actions/upload-artifact@v4
+        if: ${{ !steps.vars.outputs.skip-package }}
+        with:
+          name: package-${{ env.SYNERGY_PACKAGE_PREFIX }}-${{ needs.get-version.outputs.version }}-${{ matrix.target.name }}
+          path: dist
+          if-no-files-found: error
+
+      - name: Report failure
+        if: ${{ failure() && github.event_name != 'pull_request' }}
+        uses: slackapi/slack-github-action@v1
+        with:
+          channel-id: ${{ secrets.SLACK_NOTIFY_CHANNEL_ID }}
+          slack-message: |
+            <!channel>
+            ❌ Synergy 1 CI failed for: *${{ matrix.target.name }}*
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow run>
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
+
+  main-upload:
+    runs-on: ubuntu-latest
+    needs: [main, get-version]
+    if: ${{ always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+
+      - name: AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Upload to AWS S3
+        run: |
+          source_dir="./dist/"
+          version="${{ needs.get-version.outputs.version }}"
+          s3_uri="${{ inputs.aws-s3-uri || format('s3://{0}/{1}', vars.AWS_S3_BUCKET, vars.AWS_S3_UPLOAD_DIR) }}"
+
+          # Strip trailing slash to avoid double slash in URL
+          s3_uri="${s3_uri%/}"
+
+          # Separate snapshot, dev, and release versions for easier navigation
+          if [[ "$version" =~ snapshot ]]; then
+            # Organize by major.minor.patch dir (i.e. 1.0.0/1.0.0-foobar+r123)
+            short_version=$(echo "$version" | cut -d'-' -f1 | cut -d'+' -f1)
+            sub_dir="snapshot/$short_version"
+          elif [[ "$version" =~ dev ]]; then
+            sub_dir="dev"
+          else
+            sub_dir="release"
+          fi
+
+          url="$s3_uri/$sub_dir/$version"
+
+          echo "Uploading to AWS S3: $url"
+          aws s3 cp $source_dir $url --recursive
+
+        shell: bash

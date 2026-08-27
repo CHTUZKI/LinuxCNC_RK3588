@@ -1,0 +1,88 @@
+# core_lcec.hal — Core HAL for RK3588 EtherCAT milling machine
+#
+# Currently configured for 1 axis (X). Add Y/Z blocks when more drives
+# are connected and uncomment the corresponding slaves in ethercat-conf.xml.
+#
+# Homing path (drive-side CiA402 hard-stop):
+#   [EMCMOT]HOMEMOD=ssdc_homecomp  → waits, finishes, sets joint.homed
+#   cia402_home.py                 → SDO / opmode / controlword executor
+#   joint_fb_mux                   → while ext-home-start: motor-pos-fb = cmd
+#     (FE is computed in process_inputs BEFORE do_homing; HAL lie is required)
+#
+# cia402_home is the single source of truth for controlword and opmode.
+
+# --- Load RT modules ---
+loadusr -W lcec_conf ethercat-conf.xml
+loadrt lcec
+loadrt trivkins coordinates=x
+loadrt [EMCMOT]EMCMOT base_period_nsec=[EMCMOT]BASE_PERIOD servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS num_dio=10
+loadrt scale names=scale_x,scale_x_fb,scale_to_rpm
+loadrt conv_float_s32 names=conv_x_cmd
+loadrt conv_s32_float names=conv_x_fb
+loadrt mux2 names=joint_fb_mux
+
+# --- CiA402 drive enable monitor (userspace, read-only) ---
+loadusr -Wn cia402_enable python3 ./python/cia402_enable.py names=x-enable
+
+# --- CiA402 drive homing + controlword manager (userspace) ---
+loadusr -Wn cia402_home python3 ./python/cia402_home.py
+
+# --- Servo thread: read EtherCAT → scale/mux → motion → write ---
+addf lcec.read-all servo-thread
+addf conv_x_fb servo-thread
+addf scale_x_fb servo-thread
+addf joint_fb_mux servo-thread
+addf motion-command-handler servo-thread
+addf motion-controller servo-thread
+addf scale_x servo-thread
+addf conv_x_cmd servo-thread
+addf lcec.write-all servo-thread
+
+# --- X Axis: mm -> counts (cmd) and counts -> mm (fb) ---
+# Measured: 1 motor rev = 10 mm travel (lead), encoder 4096 → 409.6 counts/mm
+setp scale_x.gain    409.6
+setp scale_x_fb.gain 0.00244140625
+net Xpos-cmd  joint.0.motor-pos-cmd => scale_x.in
+net Xpos-float scale_x.out => conv_x_cmd.in
+net Xpos-cnt  conv_x_cmd.out => lcec.master0.x-axis.srv-target-position
+net Xfb-cnt   lcec.master0.x-axis.srv-actual-position => conv_x_fb.in
+net Xfb-cnt   => cia402_home.actual-position
+net Xfb-float conv_x_fb.out => scale_x_fb.in
+
+# Real encoder mm (always true) for homemod finish sync
+net Xpos-real scale_x_fb.out => joint_fb_mux.in0
+net Xpos-real => joint.0.ext-actual-pos
+# While drive homes, present cmd as fb so process_inputs sees no FE
+net Xpos-cmd  => joint_fb_mux.in1
+net X-ext-home-start joint.0.ext-home-start => joint_fb_mux.sel
+net X-ext-home-start => cia402_home.home-request
+net Xpos-fb joint_fb_mux.out => joint.0.motor-pos-fb
+
+# --- Controlword / opmode: cia402_home is the single writer ---
+net X-cia-cw  cia402_home.cia-controlword => lcec.master0.x-axis.srv-cia-controlword
+net X-opmode  cia402_home.srv-opmode     => lcec.master0.x-axis.srv-opmode
+
+# --- Statusword ---
+net X-cia-stat lcec.master0.x-axis.srv-cia-statusword => cia402_home.cia-statusword
+net X-cia-stat => cia402_enable.x-enable.cia-statusword
+
+# --- Homing configuration (SSDC06-ECX-H hard-stop method -4) ---
+setp cia402_home.input-scale 409.6
+setp cia402_home.slave-position 0
+setp cia402_home.homing-method -4
+setp cia402_home.search-speed-mm-s 20.0
+setp cia402_home.hardstop-current 50
+setp cia402_home.home-offset-mm 5.0
+
+# --- Drive-side home via ssdc_homecomp ---
+setp joint.0.request-custom-homing 1
+net X-ext-home-done  cia402_home.home-done  => joint.0.ext-home-finished
+net X-ext-home-fault cia402_home.home-fault => joint.0.ext-home-fault
+
+# --- Enable status (monitor only) ---
+net X-enabled   cia402_enable.x-enable.enabled
+net X-fault     cia402_enable.x-enable.fault
+
+# --- Tool loading loopback (no ATC; immediate confirm) ---
+net tool-prep-loop   iocontrol.0.tool-prepare  iocontrol.0.tool-prepared
+net tool-change-loop iocontrol.0.tool-change   iocontrol.0.tool-changed

@@ -1,0 +1,138 @@
+|   167 |   const char *sourcefile;                 ///< Source filename, autopopulated.
+|       |               ^~~~~~~~~~
+| devices/lcec_wecon.c: In function 'lcec_wecon_init':
+| devices/lcec_wecon.c:75:32: warning: unused parameter 'comp_id' [-Wunused-parameter]
+|    75 | static int lcec_wecon_init(int comp_id, lcec_slave_t *slave) {
+|       |                            ~~~~^~~~~~~
+| devices/lcec_wecon.c: In function 'lcec_wecon_read':
+| devices/lcec_wecon.c:125:55: warning: unused parameter 'period' [-Wunused-parameter]
+|   125 | static void lcec_wecon_read(lcec_slave_t *slave, long period) {
+|       |                                                  ~~~~~^~~~~~
+| devices/lcec_wecon.c: In function 'lcec_wecon_write':
+| devices/lcec_wecon.c:135:56: warning: unused parameter 'period' [-Wunused-parameter]
+|   135 | static void lcec_wecon_write(lcec_slave_t *slave, long period) {
+|       |                                                   ~~~~~^~~~~~
+| lcec_ethercat.c: In function 'lcec_syncs_enable_autoflow':
+| lcec_ethercat.c:73:47: warning: unused parameter 'slave' [-Wunused-parameter]
+|    73 | void lcec_syncs_enable_autoflow(lcec_slave_t *slave, lcec_syncs_t *syncs, int pdo_limit, int pdo_entry_limit, int pdo_increment) {
+|       |                                 ~~~~~~~~~~~~~~^~~~~
+| lcec_ethercat.c: In function 'lcec_syncs_add_pdo_entry':
+| lcec_ethercat.c:160:59: warning: comparison of integer expressions of different signedness: 'unsigned int' and 'int' [-Wsign-compare]
+|   160 |   if (syncs->autoflow && (syncs->curr_pdo_info->n_entries >= syncs->pdo_entry_limit)) {
+|       |                                                           ^~
+| lcec_main.c:90:5: warning: missing initializer for field 'dir' of 'lcec_paramdesc_t' [-Wmissing-field-initializers]
+|    90 |     {HAL_TYPE_UNSPECIFIED},
+|       |     ^
+| In file included from devices/lcec_generic.h:25,
+|                  from lcec_main.c:28:
+| devices/../lcec.h:387:19: note: 'dir' declared here
+|   387 |   hal_param_dir_t dir;  ///< Direction for this parameter (`HAL_RO` or `HAL_RW`).
+|       |                   ^~~
+| lcec_main.c: In function 'lcec_read_all':
+| lcec_main.c:1134:26: warning: unused parameter 'arg' [-Wunused-parameter]
+|  1134 | void lcec_read_all(void *arg, long period) {
+|       |                    ~~~~~~^~~
+| lcec_main.c: In function 'lcec_write_all':
+| lcec_main.c:1152:27: warning: unused parameter 'arg' [-Wunused-parameter]
+|  1152 | void lcec_write_all(void *arg, long period) {
+|       |                     ~~~~~~^~~
+| lcec_main.c: In function 'lcec_write_master':
+| lcec_main.c:1424:40: warning: unused parameter 'period' [-Wunused-parameter]
+|  1424 | void lcec_write_master(void *arg, long period) {
+|       |                                   ~~~~~^~~~~~
+| lcec_conf.c: In function 'exitHandler':
+| lcec_conf.c:100:29: warning: unused parameter 'sig' [-Wunused-parameter]
+|   100 | static void exitHandler(int sig) {
+|       |                         ~~~~^~~
+| lcec_conf.c: In function 'parseMasterAttrs':
+| lcec_conf.c:259:62: warning: unused parameter 'next' [-Wunused-parameter]
+|   259 | static void parseMasterAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                          ~~~~^~~~
+| lcec_conf.c: In function 'parseSlaveAttrs':
+| lcec_conf.c:381:61: warning: unused parameter 'next' [-Wunused-parameter]
+|   381 | static void parseSlaveAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                         ~~~~^~~~
+| lcec_conf.c: In function 'parseDcConfAttrs':
+| lcec_conf.c:522:62: warning: unused parameter 'next' [-Wunused-parameter]
+|   522 | static void parseDcConfAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                          ~~~~^~~~
+| lcec_conf.c: In function 'parseWatchdogAttrs':
+| lcec_conf.c:573:64: warning: unused parameter 'next' [-Wunused-parameter]
+|   573 | static void parseWatchdogAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                            ~~~~^~~~
+| lcec_conf.c: In function 'parseSdoConfigAttrs':
+| lcec_conf.c:606:65: warning: unused parameter 'next' [-Wunused-parameter]
+|   606 | static void parseSdoConfigAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                             ~~~~^~~~
+| lcec_conf.c: In function 'parseIdnConfigAttrs':
+| lcec_conf.c:675:65: warning: unused parameter 'next' [-Wunused-parameter]
+|   675 | static void parseIdnConfigAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                             ~~~~^~~~
+| lcec_conf.c: In function 'parseDataRawAttrs':
+| lcec_conf.c:792:63: warning: unused parameter 'next' [-Wunused-parameter]
+|   792 | static void parseDataRawAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                           ~~~~^~~~
+| lcec_conf.c: In function 'parseInitCmdsAttrs':
+| lcec_conf.c:836:64: warning: unused parameter 'next' [-Wunused-parameter]
+|   836 | static void parseInitCmdsAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                            ~~~~^~~~
+| lcec_conf.c: In function 'parseSyncManagerAttrs':
+| lcec_conf.c:871:67: warning: unused parameter 'next' [-Wunused-parameter]
+|   871 | static void parseSyncManagerAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                               ~~~~^~~~
+| lcec_conf.c: In function 'parsePdoAttrs':
+| lcec_conf.c:948:59: warning: unused parameter 'next' [-Wunused-parameter]
+|   948 | static void parsePdoAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                       ~~~~^~~~
+| lcec_conf.c: In function 'parsePdoEntryAttrs':
+| lcec_conf.c:994:64: warning: unused parameter 'next' [-Wunused-parameter]
+|   994 | static void parsePdoEntryAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                            ~~~~^~~~
+| lcec_conf.c: In function 'parseComplexEntryAttrs':
+| lcec_conf.c:1165:68: warning: unused parameter 'next' [-Wunused-parameter]
+|  1165 | static void parseComplexEntryAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                                ~~~~^~~~
+| lcec_conf.c: In function 'parseModParamAttrs':
+| lcec_conf.c:1290:64: warning: unused parameter 'next' [-Wunused-parameter]
+|  1290 | static void parseModParamAttrs(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                            ~~~~^~~~
+| lcec_conf.c: In function 'main':
+| lcec_conf.c:257:1: warning: the frame size of 8336 bytes is larger than 2560 bytes [-Wframe-larger-than=]
+|   257 | }
+|       | ^
+| lcec_conf_icmds.c: In function 'icmdTypeCoeIcmdStart':
+| lcec_conf_icmds.c:219:66: warning: unused parameter 'next' [-Wunused-parameter]
+|   219 | static void icmdTypeCoeIcmdStart(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                              ~~~~^~~~
+| lcec_conf_icmds.c: In function 'icmdTypeCoeIcmdEnd':
+| lcec_conf_icmds.c:247:64: warning: unused parameter 'next' [-Wunused-parameter]
+|   247 | static void icmdTypeCoeIcmdEnd(LCEC_CONF_XML_INST_T *inst, int next) {
+|       |                                                            ~~~~^~~~
+| lcec_conf_icmds.c: In function 'icmdTypeSoeIcmdStart':
+| lcec_conf_icmds.c:265:66: warning: unused parameter 'next' [-Wunused-parameter]
+|   265 | static void icmdTypeSoeIcmdStart(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                              ~~~~^~~~
+| lcec_conf_icmds.c:265:85: warning: unused parameter 'attr' [-Wunused-parameter]
+|   265 | static void icmdTypeSoeIcmdStart(LCEC_CONF_XML_INST_T *inst, int next, const char **attr) {
+|       |                                                                        ~~~~~~~~~~~~~^~~~
+| lcec_conf_icmds.c: In function 'icmdTypeSoeIcmdEnd':
+| lcec_conf_icmds.c:281:64: warning: unused parameter 'next' [-Wunused-parameter]
+|   281 | static void icmdTypeSoeIcmdEnd(LCEC_CONF_XML_INST_T *inst, int next) {
+|       |                                                            ~~~~^~~~
+| lcec_conf_icmds.c: In function 'parseIcmds':
+| lcec_conf_icmds.c:158:1: warning: the frame size of 8256 bytes is larger than 2560 bytes [-Wframe-larger-than=]
+|   158 | }
+|       | ^
+| /home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc-ethercat/0.1+git/recipe-sysroot-native/usr/bin/aarch64-poky-linux/../../libexec/aarch64-poky-linux/gcc/aarch64-poky-linux/13.4.0/ld: /home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc-ethercat/0.1+git/build/obj/lcec_configgen.o: in function `main':
+| /usr/src/debug/linuxcnc-ethercat/0.1+git/src/lcec_configgen.c:1093: multiple definition of `main'; /home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc-ethercat/0.1+git/build/obj/lcec_conf.o:/usr/src/debug/linuxcnc-ethercat/0.1+git/src/lcec_conf.c:107: first defined here
+| collect2: error: ld returned 1 exit status
+| WARNING: exit code 1 from a shell command.
+ERROR: Task (/home/xuning/yocto-rk3588-core/build/../meta-rk3588-custom/recipes-cnc/linuxcnc-ethercat/linuxcnc-ethercat_git.bb:do_compile) failed with exit code '1'
+NOTE: Tasks Summary: Attempted 10162 tasks of which 10116 didn't need to be rerun and 1 failed.
+
+Summary: 1 task failed:
+  /home/xuning/yocto-rk3588-core/build/../meta-rk3588-custom/recipes-cnc/linuxcnc-ethercat/linuxcnc-ethercat_git.bb:do_compile
+    log: /home/xuning/yocto-rk3588-core/build/tmp/work/cortexa76-cortexa55-crypto-poky-linux/linuxcnc-ethercat/0.1+git/temp/log.do_compile.88203
+Summary: There was 1 WARNING message.
+Summary: There was 1 ERROR message, returning a non-zero exit code.
+xuning@DESKTOP-ML3JIRG:~/yocto-rk3588-core/build$

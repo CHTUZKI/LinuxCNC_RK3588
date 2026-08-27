@@ -1,0 +1,25 @@
+; Testfile "hello world"
+; will just give messages 
+
+O<halo_world> sub
+
+G17
+G21
+G54
+G61
+G40
+G49
+G80
+G90
+
+G0 X10
+
+(MSG, Hallo Welt)
+(MSG, hello world)
+
+G0X-10
+
+O<halo_world> endsub
+
+M2
+

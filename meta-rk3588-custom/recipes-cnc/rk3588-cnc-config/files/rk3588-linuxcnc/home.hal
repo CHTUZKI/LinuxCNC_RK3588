@@ -1,0 +1,25 @@
+# home.hal — Homing and limit switch wiring for EtherCAT drives
+#
+# lcec basic_cia402 exposes digital inputs as:
+#   srv-din-positive-limit  HAL_OUT bit
+#   srv-din-negative-limit  HAL_OUT bit
+#   srv-din-home            HAL_OUT bit
+# These come from the drive's 0x60FD digital inputs object; the drive's
+# Stepper Suite config must map physical inputs to these functions.
+
+# --- X Axis ---
+# Limit switches from drive digital inputs
+net X-nlsw lcec.master0.x-axis.srv-din-negative-limit => joint.0.neg-lim-sw-in
+net X-plsw lcec.master0.x-axis.srv-din-positive-limit => joint.0.pos-lim-sw-in
+# Drive-side home is handled by ssdc_homecomp (ext-home-*), not home-sw-in.
+# net X-home lcec.master0.x-axis.srv-din-home           => joint.0.home-sw-in
+
+# --- Y Axis (add when drive connected) ---
+# net Y-nlsw lcec.master0.y-axis.srv-din-negative-limit => joint.1.neg-lim-sw-in
+# net Y-plsw lcec.master0.y-axis.srv-din-positive-limit => joint.1.pos-lim-sw-in
+# net Y-home lcec.master0.y-axis.srv-din-home           => joint.1.home-sw-in
+
+# --- Z Axis (add when drive connected) ---
+# net Z-nlsw lcec.master0.z-axis.srv-din-negative-limit => joint.2.neg-lim-sw-in
+# net Z-plsw lcec.master0.z-axis.srv-din-positive-limit => joint.2.pos-lim-sw-in
+# net Z-home lcec.master0.z-axis.srv-din-home           => joint.2.home-sw-in

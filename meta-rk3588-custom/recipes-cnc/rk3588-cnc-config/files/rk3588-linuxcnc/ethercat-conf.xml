@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EtherCAT configuration for RK3588 LinuxCNC.
+
+  Hardware:
+    Slave 0 : SSDC06-ECX-H (Shanghai AMP/MOONS' step-servo, CiA402)
+              VendorID 0x00000168, ProductCode 0x0000000a, Rev 0x0001
+    Slave 1 : Beckhoff EK1814 (4 DI + 4 DO, 24V)
+              VendorID 0x00000002, ProductCode 0x07162c52
+
+  Mode : CSP (Cyclic Synchronous Position) for servo drives
+  Sync : Distributed Clock, assignActivate=0x300, SYNC0 every cycle.
+
+  Pin naming:
+    Servo:  lcec.master0.<slave-name>.srv-<pin>
+    DIO:    lcec.master0.<slave-name>.din-<N> / dout-<N>
+
+  EK1814 I/O allocation:
+    din-0  : E-stop button (NC, closed = safe)
+    din-1  : Tool probe trigger
+    din-2  : Spindle at-speed (VFD output)
+    din-3  : Door interlock (closed = safe)
+    dout-0 : Coolant mist solenoid  (M7)
+    dout-1 : Coolant flood pump     (M8)
+    dout-2 : Spindle enable relay   (VFD run)
+    dout-3 : Spindle direction relay (0=fwd, 1=rev)
+
+  TODO: spindle speed 0-10V analog needs a separate terminal (e.g. EL4001).
+
+  NOTE: positionLimitMin/Max, homeMethod, encoderRatio, feedRatio are
+  intentionally omitted — the SSDC06-ECX-H rejects SDO writes to
+  0x607b (position limit) during INIT/PREOP with abort code 0x06020000.
+  Configure these in the drive via Stepper Suite instead.
+-->
+<masters>
+  <master idx="0" appTimePeriod="1000000" refClockSyncCycles="5" name="master0">
+
+    <!-- ===================== X Axis ===================== -->
+    <slave idx="0" type="basic_cia402" vid="0x00000168" pid="0x0000000a" name="x-axis">
+      <dcConf assignActivate="300" sync0Cycle="*1" sync0Shift="0"/>
+      <watchdog divider="2498" intervals="1000"/>
+      <modParam name="enableCSP" value="true"/>
+      <modParam name="enableDigitalInput" value="true"/>
+      <modParam name="digitalInChannels" value="3"/>
+    </slave>
+
+    <!-- ===================== EK1814 DIO (4DI + 4DO) ===================== -->
+    <slave idx="1" type="EK1814" vid="0x00000002" pid="0x07162c52" name="ek1814">
+      <watchdog divider="2498" intervals="1000"/>
+    </slave>
+
+    <!-- ===================== Y Axis (add when drive connected) ====================
+    <slave idx="2" type="basic_cia402" vid="0x00000168" pid="0x0000000a" name="y-axis">
+      <dcConf assignActivate="300" sync0Cycle="*1" sync0Shift="0"/>
+      <watchdog divider="2498" intervals="1000"/>
+      <modParam name="enableCSP" value="true"/>
+      <modParam name="enableDigitalInput" value="true"/>
+      <modParam name="digitalInChannels" value="3"/>
+    </slave>
+    -->
+
+    <!-- ===================== Z Axis (add when drive connected) ====================
+    <slave idx="3" type="basic_cia402" vid="0x00000168" pid="0x0000000a" name="z-axis">
+      <dcConf assignActivate="300" sync0Cycle="*1" sync0Shift="0"/>
+      <watchdog divider="2498" intervals="1000"/>
+      <modParam name="enableCSP" value="true"/>
+      <modParam name="enableDigitalInput" value="true"/>
+      <modParam name="digitalInChannels" value="3"/>
+    </slave>
+    -->
+
+  </master>
+</masters>

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=LinuxCNC (RK3588)
+Comment=RK3588 3-axis EtherCAT CNC Machine Controller
+Type=Application
+Exec=/usr/bin/env RTAPI_UID=1000 RTAPI_FIFO_PATH=/tmp/.rtapi_fifo PYTHONPATH=/usr/lib/python3/dist-packages TCLLIBPATH=/usr/lib/tcl8.6/bwidget /usr/bin/linuxcnc /home/root/linuxcnc/configs/rk3588-linuxcnc/rk3588-linuxcnc.ini
+Icon=linuxcncicon
+X-GNOME-DocPath=
+Terminal=false
+StartupNotify=false
+X-AppStream-Ignore=true
+Categories=Science;Utility;Engineering;X-CNC;
+Keywords=cnc;linuxcnc;cncprog;

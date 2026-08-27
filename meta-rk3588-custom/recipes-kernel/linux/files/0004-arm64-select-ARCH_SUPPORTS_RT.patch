@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HD-RK3588-CORE Yocto <yocto@local>
+Date: Sun, 23 Aug 2026 00:00:00 +0000
+Subject: [PATCH] arm64: select ARCH_SUPPORTS_RT for PREEMPT_RT builds
+
+Rockchip develop-6.1 ships PREEMPT_RT Kconfig symbols and RT locking
+code, but never selects ARCH_SUPPORTS_RT on arm64. Without it,
+merge_config.sh / olddefconfig silently drop CONFIG_PREEMPT_RT=y.
+
+Signed-off-by: HD-RK3588-CORE Yocto <yocto@local>
+---
+ arch/arm64/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 111111111111..222222222222 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -38,6 +38,7 @@ config ARM64
+ 	select ARCH_HAS_SET_DIRECT_MAP
+ 	select ARCH_HAS_SET_MEMORY
+ 	select ARCH_STACKWALK
++	select ARCH_SUPPORTS_RT
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE

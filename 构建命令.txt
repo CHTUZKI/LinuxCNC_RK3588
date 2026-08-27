@@ -1,0 +1,44 @@
+# ============================================
+# LinuxCNC 分支 — 唯一镜像 rk3588-image-cnc
+# MACHINE = hd-rk3588-core-cnc（见 build/conf/local.conf）
+# ============================================
+
+cd /home/xuning/yocto-rk3588-core
+source poky/oe-init-build-env build
+bitbake rk3588-image-cnc -c cleansstate
+bitbake rk3588-image-cnc
+
+# 产物: build/tmp/deploy/images/hd-rk3588-core-cnc/update.img
+
+# --------------------------------------------
+# 改内核 / 设备树后
+# --------------------------------------------
+bitbake linux-rockchip -c cleansstate
+bitbake rk3588-image-cnc
+
+# --------------------------------------------
+# deploy 缺 ddr-rk3588.bin 等（sstate 跳过 deploy）
+# --------------------------------------------
+# bash ../scripts/clean-cnc-deploy.sh .
+# bitbake rockchip-rkbin -c deploy -f
+# bitbake rk3588-image-cnc
+
+# --------------------------------------------
+# 改 MiniLoader / rkbin
+# --------------------------------------------
+# bitbake rockchip-rkbin -c cleansstate
+# bitbake rk3588-image-cnc
+
+# --------------------------------------------
+# 改 LinuxCNC / SOEM recipe
+# --------------------------------------------
+# bitbake linuxcnc -c cleansstate
+# bitbake soem-linuxcnc-hal -c cleansstate
+# bitbake rk3588-image-cnc
+
+# ============================================
+# 分支说明
+# --------------------------------------------
+# preempt-rt  → RT 基线；以后新项目从该分支再拉子分支
+# LinuxCNC    → 本分支，独立做 CNC（不并行维护 RT 镜像）
+# 在本分支上开发无需切换 MACHINE；build/ 专用于 CNC 即可

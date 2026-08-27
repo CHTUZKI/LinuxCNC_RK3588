@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Skeleton EtherCAT config for linuxcnc-ethercat (lcec_conf).
+  Replace <slave> entries with your actual drives/I/O.
+  See: https://github.com/linuxcnc-ethercat/linuxcnc-ethercat for device types.
+-->
+<ethercat>
+  <master idx="0" name="master-0">
+    <!--
+      Example: a CiA402 servo drive on position 0.
+      <slave idx="0" type="cia402" vid="0x00000000" pid="0x00000000">
+        <dcConfig assignActivate="300" />
+      </slave>
+    -->
+  </master>
+</ethercat>

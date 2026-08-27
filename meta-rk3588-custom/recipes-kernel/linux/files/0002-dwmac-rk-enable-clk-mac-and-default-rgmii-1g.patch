@@ -1,0 +1,55 @@
+From: xuning <1729984965@qq.com>
+Subject: [PATCH] net: dwmac-rk: enable stmmaceth clk and default RGMII 1G
+
+Enable clk_mac in gmac_clk_enable and program RGMII DIV1 at powerup.
+
+Signed-off-by: xuning <1729984965@qq.com>
+---
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c	2026-07-31 11:57:03.725002182 +0800
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-rk.c	2026-07-31 11:57:03.726352442 +0800
+@@ -2864,10 +2864,8 @@
+ 			rockchip_csu_disable(bsp_priv->csu_aclk);
+ 			rockchip_csu_disable(bsp_priv->csu_pclk);
+ 
+-			/**
+-			 * if (!IS_ERR(bsp_priv->clk_mac))
+-			 *	clk_prepare_enable(bsp_priv->clk_mac);
+-			 */
++			if (!IS_ERR_OR_NULL(bsp_priv->clk_mac))
++				clk_prepare_enable(bsp_priv->clk_mac);
+ 			usleep_range(100, 200);
+ 			bsp_priv->clk_enabled = true;
+ 		}
+@@ -2902,10 +2900,8 @@
+ 			rockchip_csu_enable(bsp_priv->csu_aclk);
+ 			rockchip_csu_enable(bsp_priv->csu_pclk);
+ 
+-			/**
+-			 * if (!IS_ERR(bsp_priv->clk_mac))
+-			 *	clk_disable_unprepare(bsp_priv->clk_mac);
+-			 */
++			if (!IS_ERR_OR_NULL(bsp_priv->clk_mac))
++				clk_disable_unprepare(bsp_priv->clk_mac);
+ 			bsp_priv->clk_enabled = false;
+ 		}
+ 	}
+@@ -3163,6 +3159,19 @@
+ 		dev_err(dev, "NO interface defined!\n");
+ 	}
+ 
++	/* Default RGMII MAC clock to 125MHz before first open/DMA reset */
++	switch (bsp_priv->phy_iface) {
++	case PHY_INTERFACE_MODE_RGMII:
++	case PHY_INTERFACE_MODE_RGMII_ID:
++	case PHY_INTERFACE_MODE_RGMII_RXID:
++	case PHY_INTERFACE_MODE_RGMII_TXID:
++		if (bsp_priv->ops && bsp_priv->ops->set_rgmii_speed)
++			bsp_priv->ops->set_rgmii_speed(bsp_priv, 1000);
++		break;
++	default:
++		break;
++	}
++
+ 	ret = rk_gmac_phy_power_on(bsp_priv, true);
+ 	if (ret) {
+ 		gmac_clk_enable(bsp_priv, false);

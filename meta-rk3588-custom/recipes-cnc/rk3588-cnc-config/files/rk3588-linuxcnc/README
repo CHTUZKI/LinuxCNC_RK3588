@@ -1,0 +1,42 @@
+RK3588-LinuxCNC — 3-axis EtherCAT milling machine configuration
+================================================================
+
+This is a REAL HARDWARE config for:
+  - Board:   Vanxak HD-RK3588-CORE (RK3588J, PREEMPT_RT)
+  - Drives:  3x SSDC06-ECX-H (Shanghai AMP/MOONS' step-servo, CiA402)
+  - EtherCAT: IgH master via ec_generic on end0
+  - GUI:     gmoccapy
+
+Files:
+  rk3588-linuxcnc.ini   Main INI (axes, kinematics, GUI)
+  ethercat-conf.xml     lcec EtherCAT slave config (3x basic_cia402, CSP)
+  core_lcec.hal         Core HAL: lcec + motmod + scale (mm<->counts)
+  home.hal              Limit/home switch wiring from drive digital inputs
+  estop.hal             E-stop loopback (TODO: real E-stop chain)
+  spindle_sim.hal       Simulated spindle (TODO: real VFD)
+  postgui.hal           Post-GUI HAL (spindle feedback, tool offsets)
+  tool.tbl              Tool table
+  rk3588.var            G-code parameters
+  position.txt          Last position
+
+TODO before first run (adjust to your machine):
+  1. Motor encoder resolution:  ethercat-conf.xml encoderRatio + INI INPUT_SCALE
+     - AMxxSS-N motors: 20000 counts/rev (default)
+     - AMxxRS motors:   4096 counts/rev
+  2. Leadscrew pitch:  ethercat-conf.xml feedRatio + INI INPUT_SCALE
+     - 1610 (10 mm/rev) + 4096 enc => 409.6 counts/mm (current X)
+  3. Travel limits:  INI [AXIS_*] MIN/MAX_LIMIT + ethercat-conf.xml positionLimitMin/Max
+  4. Home method/velocity:  ethercat-conf.xml homeMethod, homeVelocityFast/Slow
+  5. Drive digital input mapping:  use Stepper Suite to map physical inputs
+     to positive-limit / negative-limit / home functions (0x60FD)
+  6. E-stop:  replace estop.hal loopback with real E-stop chain
+  7. Spindle:  replace spindle_sim.hal with real VFD control
+
+EtherCAT bring-up:
+  systemctl start ethercat        # start IgH master
+  ethercat master                 # check Phase: Idle, slaves detected
+  ethercat slaves                 # list slaves
+  ethercat pdos                   # check PDO mapping
+
+Start LinuxCNC:
+  linuxcnc /home/root/linuxcnc/configs/rk3588-linuxcnc/rk3588-linuxcnc.ini

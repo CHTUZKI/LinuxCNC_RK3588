@@ -1,0 +1,86 @@
+name: "SonarCloud Analysis"
+
+# This is best run as a standalone workflow, not as part of another workflow like CI
+# because of how GitHub understands the code scanning workflows in it's UI.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [master]
+
+jobs:
+  analyze:
+    if: ${{ !github.event.pull_request.draft && vars.SONAR_SCANNER_ENABLED }}
+
+    runs-on: ubuntu-24.04-16-core-x64
+    container: debian:trixie-slim
+    timeout-minutes: 20
+
+    env:
+      CPU_CORE_COUNT: 16
+
+    steps:
+      - name: Install container dependencies
+        run: |
+          apt update
+          apt install -y git python3 python3-venv curl unzip gcovr
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0 # SonarCloud needs the full history to assign issues properly
+
+      - name: Config Git safe dir
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Install dependencies
+        id: get-deps
+        uses: ./.github/actions/install-deps
+
+      - name: Install Build Wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -G "Ninja" \
+            -DCMAKE_BUILD_TYPE="Release" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_COVERAGE=ON
+
+      - name: Build
+        run: |
+          build-wrapper-linux-x86-64 --out-dir bw-output cmake --build build -j${CPU_CORE_COUNT}
+
+      - name: Unit tests coverage
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: cmake --build build --target coverage-unittests
+
+      - name: Integration tests coverage
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: cmake --build build --target coverage-integtests
+
+      - name: Get coverage report paths
+        id: coverage-paths
+        run: |
+          unittests=$(find build -name coverage-unittests.xml)
+          integtests=$(find build -name coverage-integtests.xml)
+          paths="${unittests}${integtests:+,$integtests}"
+          if [ -z "$paths" ]; then
+            echo "Error: No coverage files found"
+            exit 1
+          fi
+          echo "csv=$paths" >> $GITHUB_OUTPUT
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          args: >
+            -Dsonar.coverageReportPaths=${{ steps.coverage-paths.outputs.csv }}
+            -Dsonar.cfamily.threads=${{ env.CPU_CORE_COUNT }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

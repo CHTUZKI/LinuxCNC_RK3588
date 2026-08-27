@@ -1,0 +1,11 @@
+# Leave ec0 without IP — SOEM uses layer-2 raw frames on this port.
+[Match]
+Name=ec0
+
+[Network]
+LinkLocalAddressing=no
+DHCP=no
+IPv6AcceptRA=no
+
+[Link]
+RequiredForOnline=no
