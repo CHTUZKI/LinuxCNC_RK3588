@@ -8,6 +8,27 @@
 
 本仓库构建 `rk3588-image-cnc`（PREEMPT_RT + XFCE + gmoccapy + LinuxCNC + IgH EtherCAT），目标是一台 RK3588 驱动的三轴铣床。
 
+镜像内置 [Synergy](https://symless.com/synergy)，可共享同一局域网内另一台电脑的鼠标和键盘，方便在开发机上直接操作 RK3588 桌面，无需额外外设。
+
+## 用 AI IDE 扩展你的 CNC 系统
+
+本仓库的结构和配置文件都为 AI 辅助开发做了优化，添加自己的 EtherCAT 驱动器或修改系统功能非常简单：
+
+1. **准备驱动器资料**：把驱动器的 EtherCAT XML 描述文件放入 `参考文件/` 目录。如果没有 XML，可以用 [MinerU](https://github.com/opendatalab/MinerU) 把驱动器手册转成文本放进去。
+2. **用 AI IDE 打开项目**：用 Trae、Windsurf、Cursor、Claude Code 等 AI IDE 打开整个 `/home/xuning/LinuxCNC_RK3588` 项目。
+3. **告诉 AI 你的需求**：例如"参考 `参考文件/xxx.xml` 和 `meta-rk3588-custom/recipes-cnc/linuxcnc-ethercat/` 下的现有驱动，为 XXX 驱动器添加 lcec 设备支持"。AI 会参照现有代码模式完成 recipe 编写、HAL 配置、INI 修改等全部工作。
+4. **构建验证**：让 AI 执行 `bitbake rk3588-image-cnc` 构建镜像，烧录到板子。
+
+整个流程通常 10 分钟内就能完成一个新驱动器的集成。
+
+### 调试板子
+
+板子烧录后如果需要调试，直接让 AI 通过 SSH 连接到 RK3588（`ssh root@<板子IP>`），AI 可以在板子上排查日志、检查 EtherCAT 状态、测试 HAL 信号、定位问题——无需手动敲命令。
+
+### 移植到其他 RK3588 板子
+
+当前镜像基于万象奥科 HD-RK3588-CORE 构建，但 RK3588 平台高度统一，移植到其他 RK3588 板子只需调整设备树。把你的板子的设备树文件（DTS）放入 `参考文件/` 目录，告诉 AI："参考这个设备树，修改 `meta-rk3588-custom/recipes-kernel/linux/` 下的 DTS 和机器配置，适配 XXX 板子。"AI 会处理好引脚、时钟、外设差异，生成可构建的配置。
+
 ## 架构
 
 ```
