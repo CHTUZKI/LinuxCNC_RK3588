@@ -3,7 +3,7 @@
 # MACHINE = hd-rk3588-core-cnc（见 build/conf/local.conf）
 # ============================================
 
-cd /home/xuning/yocto-rk3588-core
+cd /home/xuning/LinuxCNC_RK3588
 source poky/oe-init-build-env build
 bitbake rk3588-image-cnc -c cleansstate
 bitbake rk3588-image-cnc

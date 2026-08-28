@@ -100,7 +100,23 @@ LinuxCNC_RK3588/
 sudo apt-get update
 sudo apt-get install build-essential chrpath cpio debianutils diffstat file gawk gcc git \
   iputils-ping libacl1 lz4 locales python3 python3-jinja2 python3-pexpect python3-pip \
-  python3-subunit socat texinfo unzip wget xz-utils zstd
+  python3-subunit socat texinfo unzip wget xz-utils zstd \
+  ca-certificates bc bison flex libncurses-dev libssl-dev python3-git python3-pyelftools
+```
+
+WSL 缺少 `en_US.UTF-8` 会导致 bitbake 报 locale 错误，执行以下命令修复：
+
+```bash
+sudo bash -lc '
+set -e
+if grep -qE "^[# ]*en_US\.UTF-8 UTF-8" /etc/locale.gen; then
+  sed -i "s/^[# ]*en_US\.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /etc/locale.gen
+else
+  echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+fi
+locale-gen en_US.UTF-8
+update-locale LANG=en_US.UTF-8
+'
 ```
 
 ### 克隆与子模块

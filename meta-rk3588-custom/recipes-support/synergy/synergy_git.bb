@@ -37,6 +37,19 @@ do_configure:prepend() {
     sed -i 's/add_compile_options(-Werror)/# disabled -Werror/' ${S}/ext/synergy-extra/CMakeLists.txt
     sed -i 's/add_compile_options(\/WX)/# disabled \/WX/' ${S}/cmake/Build.cmake
     sed -i 's/add_compile_options(\/WX)/# disabled \/WX/' ${S}/ext/synergy-extra/CMakeLists.txt
+
+    # Source is shipped as a plain directory (file://), so there's no .git.
+    # Version.cmake requires a git repo to run `git describe origin/master --tags`.
+    # Create a minimal repo with one commit + a version tag so the describe call succeeds.
+    # Use git -C instead of cd so we don't change the working directory (cmake uses CWD as build dir).
+    git -C ${S} init -q && \
+    git -C ${S} config user.email "build@yocto" && \
+    git -C ${S} config user.name "Yocto" && \
+    git -C ${S} add -A && \
+    git -C ${S} commit -q -m "init" && \
+    git -C ${S} tag "v$(cat ${S}/VERSION)" && \
+    git -C ${S} branch -M master && \
+    git -C ${S} update-ref refs/remotes/origin/master refs/heads/master
 }
 
 FILES:${PN} += " \
